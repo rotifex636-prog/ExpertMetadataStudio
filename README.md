@@ -1,4 +1,4 @@
-# Expert Metadata Studio v0.6 — development build
+# Expert Metadata Studio v0.7 — UI development build
 
 This branch replaces the scan-only prototype with an initial working media-processing engine.
 
@@ -13,3 +13,5 @@ Implemented:
 Limitations: MP4 remux is codec/device-dependent; not every embedded tag is removed. Image export is not lossless. Not all video formats are supported. No verified long-file resilience, persistent job queue, manual tag editing, or completed five-screen design. Synthetic coordinates are not authentic provenance.
 
 GitHub Actions builds a debug APK. Test on an Android device before relying on the outputs.
+
+UI: New StudioActivity launches Home, Select Media bottom sheet, Details, Processing, Settings, Files and About. Some mockup controls remain informational; Record Video, edit metadata, and processed-file history are not implemented. Verify APK compilation and device behavior before release.
