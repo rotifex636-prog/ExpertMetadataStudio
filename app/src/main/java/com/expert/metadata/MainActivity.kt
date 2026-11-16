@@ -42,13 +42,13 @@ class MainActivity : ComponentActivity() {
                     Text("SMART MEDIA PROCESSOR  •  DEVELOPMENT PREVIEW", color = Blue, fontSize = 11.sp)
                     Card(colors = CardDefaults.cardColors(containerColor = Panel)) {
                         Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text("One Tap. All Done.", fontSize = 27.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("Metadata Cleaner & Editor", fontSize = 27.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             Text("Auto Clean  •  USA Profile  •  Quality Preserve", color = Color.LightGray)
                             Text("● AUTO MODE — PLANNED", color = Color(0xFF86EFAC), fontSize = 12.sp)
                             Button(onClick = { picker.launch(arrayOf("video/*", "image/*")) }, modifier = Modifier.fillMaxWidth()) { Text("SELECT MEDIA") }
                         }
                     }
-                    Text("Selected files", fontWeight = FontWeight.Bold, fontSize = 19.sp)
+                    Text("Selected files", fontWeight = FontWeight.Bold, fontSize = 19.sp, color = Color.White)
                     if (selected.isEmpty()) Text("No media selected", color = Color.LightGray)
                     selected.take(30).forEach { uri ->
                         val name = remember(uri) {
