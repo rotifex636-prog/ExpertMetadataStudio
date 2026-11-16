@@ -81,7 +81,7 @@ private fun StudioApp(activity:ComponentActivity){
   Column(Modifier.fillMaxSize().background(Navy)){
    if(page=="Home"||page=="Files"||page=="Settings"||page=="About") {
     Row(Modifier.fillMaxWidth().padding(start=20.dp,end=20.dp,top=26.dp,bottom=12.dp),verticalAlignment=Alignment.CenterVertically){
-     Text(if(page=="Home")"▣" else if(page=="Settings")"⚙" else "◈",fontSize=28.sp,color=Cyan)
+     StudioLogo()
      Spacer(Modifier.width(12.dp))
      Column {
       Text(if(page=="Home")"Expert Metadata Studio" else page,color=Color.White,fontWeight=FontWeight.Bold,fontSize=21.sp)
@@ -97,9 +97,7 @@ private fun StudioApp(activity:ComponentActivity){
    Box(Modifier.weight(1f)){
     when(page){
      "Home"->Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=18.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
-      Box(Modifier.fillMaxWidth().height(62.dp).clip(RoundedCornerShape(18.dp)).background(Brush.horizontalGradient(listOf(Color(0xFF003C74),Cyan,Color(0xFF003C74)))),contentAlignment=Alignment.Center){
-       Text("✦  CLEAN  •  PROTECT  •  EXPORT  ✦",color=Color.White,fontWeight=FontWeight.Bold)
-      }
+      PremiumWaveHeader()
       StudioCard {
        Text("Metadata Cleaner & Editor",color=Color.White,fontSize=23.sp,fontWeight=FontWeight.Bold)
        Text("Remove, Clean & Rewrite Media Metadata with Original Quality when supported",color=Muted,fontSize=13.sp)
@@ -114,12 +112,12 @@ private fun StudioApp(activity:ComponentActivity){
       }
       Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text("Recent Files",color=Color.White,fontSize=19.sp,fontWeight=FontWeight.Bold);TextButton(onClick={selected=emptyList()}){Text("Clear All")}}
       if(selected.isEmpty())StudioCard{Text("No files yet — select media to begin",color=Muted)}
-      selected.take(5).forEach{uri->StudioCard{Text("▶  "+displayName(activity,uri),color=Color.White,maxLines=1,overflow=TextOverflow.Ellipsis)}}
+      selected.take(5).forEach{uri->StudioCard{Row(verticalAlignment=Alignment.CenterVertically){MediaThumbnail(activity,uri,Modifier.size(width=84.dp,height=58.dp));Spacer(Modifier.width(12.dp));Text(displayName(activity,uri),color=Color.White,maxLines=2,overflow=TextOverflow.Ellipsis)}}}
      }
      "Details"->Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=18.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
       StudioCard{
        Box(Modifier.fillMaxWidth().height(156.dp).clip(RoundedCornerShape(12.dp)).background(Brush.verticalGradient(listOf(Color(0xFF1D628A),Color(0xFF06192F)))),contentAlignment=Alignment.Center){
-        Text("▶",fontSize=54.sp,color=Color.White)
+        selected.firstOrNull()?.let{MediaThumbnail(activity,it,Modifier.fillMaxSize())} ?: Text("▶",fontSize=54.sp,color=Color.White)
        }
        Text(selected.firstOrNull()?.let{displayName(activity,it)}?:"No media selected",color=Color.White,fontWeight=FontWeight.Bold,maxLines=2)
        Text("${selected.size} file(s) selected",color=Muted)
@@ -203,7 +201,7 @@ private fun StudioApp(activity:ComponentActivity){
     Row(Modifier.fillMaxWidth().background(Color(0xFF03101F)).padding(vertical=8.dp),horizontalArrangement=Arrangement.SpaceEvenly){
      listOf("Home" to "⌂","Files" to "▱","Settings" to "⚙","About" to "ⓘ").forEach{(name,symbol)->
       Column(Modifier.clickable{page=name}.padding(horizontal=9.dp),horizontalAlignment=Alignment.CenterHorizontally){
-       Text(symbol,color=if(page==name)Cyan else Color.White,fontSize=25.sp)
+       PremiumNavIcon(name,page==name)
        Text(name,color=if(page==name)Cyan else Color.White,fontSize=11.sp)
       }
      }
