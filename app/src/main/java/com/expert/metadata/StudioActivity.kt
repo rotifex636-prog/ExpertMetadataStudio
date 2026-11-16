@@ -37,6 +37,7 @@ class StudioActivity:ComponentActivity(){
  override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);setContent { StudioApp(this) }}
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun StudioApp(activity:ComponentActivity){
  var page by remember{mutableStateOf("Home")}
