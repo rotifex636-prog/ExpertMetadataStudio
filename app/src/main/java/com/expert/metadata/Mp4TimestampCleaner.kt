@@ -13,14 +13,15 @@ import java.nio.ByteOrder
 internal fun clearMp4HeaderTimes(context:Context,uri:Uri):Int {
  val descriptor=context.contentResolver.openFileDescriptor(uri,"rw")?:error("Cannot reopen MP4 for timestamp cleaning")
  descriptor.use { fd ->
+  val reader=FileInputStream(fd.fileDescriptor).channel
   val channel=FileOutputStream(fd.fileDescriptor).channel
-  val size=channel.size()
+  val size=reader.size()
   fun read(at:Long,n:Int):ByteBuffer {
    require(at>=0&&n>=0&&at<=size-n){"Invalid MP4 box bounds"}
    val b=ByteBuffer.allocate(n).order(ByteOrder.BIG_ENDIAN)
    var pos=at
    while(b.hasRemaining()){
-    val count=channel.read(b,pos)
+    val count=reader.read(b,pos)
     check(count>0){"Incomplete MP4 header"}
     pos+=count
    }
@@ -67,7 +68,7 @@ internal fun clearMp4HeaderTimes(context:Context,uri:Uri):Int {
    walk(0,size,0)
    check(modified>0){"No MP4 timestamp headers found"}
    channel.force(true)
-  }finally{channel.close()}
+  }finally{reader.close();channel.close()}
   return modified
  }
 }
