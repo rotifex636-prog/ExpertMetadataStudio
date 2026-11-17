@@ -120,7 +120,7 @@ internal fun displayName(context:Context,uri:Uri):String=runCatching{
  context.contentResolver.query(uri,arrayOf(OpenableColumns.DISPLAY_NAME),null,null,null)?.use{c->if(c.moveToFirst())c.getString(0) else null}?:"media"
 }.getOrDefault("media")
 
-internal fun process(context:Context,uri:Uri,onProgress:(Float)->Unit,usaCity:String?=null):String{
+internal fun process(context:Context,uri:Uri,onProgress:(Float)->Unit,usaCity:String?=null,clearTimestamps:Boolean=true):String{
  val resolver=context.contentResolver
  val name=displayName(context,uri)
  val mime=resolver.getType(uri).orEmpty().lowercase(Locale.US)
@@ -146,6 +146,7 @@ internal fun process(context:Context,uri:Uri,onProgress:(Float)->Unit,usaCity:St
    resolver.openFileDescriptor(destination,"w")?.use{fd->
     remux(context,uri,fd.fileDescriptor,onProgress,usaCity)
    }?:error("Cannot open video output")
+   if(clearTimestamps)clearMp4HeaderTimes(context,destination)
   }else{
    // Image re-export intentionally remains separate; JPEG may be lossy.
    resolver.openInputStream(uri)?.use{input->
