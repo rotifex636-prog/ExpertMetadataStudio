@@ -52,6 +52,8 @@ private fun StudioApp(activity:ComponentActivity){
  var usa by remember{mutableStateOf(prefs.getBoolean("synthetic_usa",false))}
  var city by remember{mutableStateOf(prefs.getString("usa_city","New York")?:"New York")}
  LaunchedEffect(usa,city){prefs.edit().putBoolean("synthetic_usa",usa).putString("usa_city",city).apply()}
+ var clearMp4Times by remember{mutableStateOf(prefs.getBoolean("clear_mp4_timestamps",true))}
+ LaunchedEffect(clearMp4Times){prefs.edit().putBoolean("clear_mp4_timestamps",clearMp4Times).apply()}
  var cameraProfile by remember{mutableStateOf(prefs.getString("camera_profile","Original")?:"Original")}
  LaunchedEffect(cameraProfile){prefs.edit().putString("camera_profile",cameraProfile).apply()}
  var autoClean by remember{mutableStateOf(true)}
@@ -91,7 +93,7 @@ private fun StudioApp(activity:ComponentActivity){
   ContextCompat.startForegroundService(activity,Intent(activity,ProcessingService::class.java).apply{
    action=ProcessingService.START
    putParcelableArrayListExtra("uris",ArrayList(selected))
-   putExtra("synthetic_usa",usa);putExtra("usa_city",city)
+   putExtra("synthetic_usa",usa);putExtra("usa_city",city);putExtra("clear_mp4_timestamps",clearMp4Times)
   })
  }
  MaterialTheme(colorScheme=darkColorScheme(primary=Cyan,background=Navy,surface=Panel)){
@@ -265,6 +267,7 @@ private fun StudioApp(activity:ComponentActivity){
       Text("Processing Options",color=Cyan,fontWeight=FontWeight.Bold)
       StudioCard{
        Setting("Auto Clean Metadata","Clean supported non-essential tags",autoClean){autoClean=it}
+       Setting("Clear MP4 Header Timestamps","Reset generated movie and audio/video track creation/modification dates to unset",clearMp4Times){clearMp4Times=it}
        Setting("🇺🇸 Generate USA Profile","Optional synthetic GPS location for MP4 exports",usa){usa=it}
        if(usa){
         Text("USA City",color=Muted)
