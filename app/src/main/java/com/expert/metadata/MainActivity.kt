@@ -164,8 +164,17 @@ internal fun process(context:Context,uri:Uri,onProgress:(Float)->Unit,usaCity:St
   }
   val published=resolver.update(destination,ContentValues().apply{put(MediaStore.MediaColumns.IS_PENDING,0)},null,null)
   check(published>0){"Output created but could not be published to Gallery"}
-  // Notify gallery observers and request a media scan of the newly published item.
+  // Some media providers overwrite DATE_TAKEN while finalizing a pending item.
+  // Set the export date after publication, then notify both item and collection observers.
+  val exportTime=System.currentTimeMillis()
+  runCatching{
+   resolver.update(destination,ContentValues().apply{
+    put(MediaStore.MediaColumns.DATE_TAKEN,exportTime)
+    put(MediaStore.MediaColumns.DATE_MODIFIED,exportTime/1000L)
+   },null,null)
+  }
   resolver.notifyChange(destination,null)
+  resolver.notifyChange(collection,null)
   runCatching{
    resolver.query(destination,arrayOf(MediaStore.MediaColumns.DATA),null,null,null)?.use{cursor->
     if(cursor.moveToFirst()){
