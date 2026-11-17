@@ -30,6 +30,14 @@ internal fun inspectMp4Headers(context:Context,uri:Uri):List<MetadataEntry>{
    var trackNumber=0
    var cameraMake:String?=null
    var cameraModel:String?=null
+   fun readTag(at:Long,end:Long):String?{
+    val count=(end-at).coerceAtMost(256L).toInt()
+    if(count<=0)return null
+    val bytes=read(at,count)?:return null
+    val data=ByteArray(count);bytes.get(data)
+    val value=String(data,Charsets.UTF_8).trim().trim('\u0000')
+    return value.takeIf{it.isNotBlank()&&it.all{ch->!ch.isISOControl()}}
+   }
    val mdtaKeys=mutableMapOf<Int,String>()
    fun parseKeys(start:Long,end:Long){
     val header=read(start,8)?:return
@@ -57,14 +65,6 @@ internal fun inspectMp4Headers(context:Context,uri:Uri):List<MetadataEntry>{
     val type=flags.int and 0x00ffffff
     if(type!=1&&type!=0)return null
     return readTag(start+16,start+boxSize)
-   }
-   fun readTag(at:Long,end:Long):String?{
-    val count=(end-at).coerceAtMost(256L).toInt()
-    if(count<=0)return null
-    val bytes=read(at,count)?:return null
-    val data=ByteArray(count);bytes.get(data)
-    val value=String(data,Charsets.UTF_8).trim().trim('\u0000')
-    return value.takeIf{it.isNotBlank()&&it.all{ch->!ch.isISOControl()}}
    }
    fun date(seconds:Long):String=if(seconds==0L)"Unset (MP4 epoch zero)" else runCatching{Instant.ofEpochSecond(Math.subtractExact(seconds,2082844800L)).toString()}.getOrElse{"Invalid"}
    fun scan(start:Long,end:Long,depth:Int,track:Int=0){
