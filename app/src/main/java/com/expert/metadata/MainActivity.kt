@@ -153,7 +153,7 @@ internal fun process(context:Context,uri:Uri,onProgress:(Float)->Unit,usaCity:St
   }else{
    // Image re-export intentionally remains separate; JPEG may be lossy.
    resolver.openInputStream(uri)?.use{input->
-    val bitmap=BitmapFactory.decodeStream(input)?:error("Cannot decode image")
+    val bitmap=try{BitmapFactory.decodeStream(input)?:error("Cannot decode image")}catch(e:OutOfMemoryError){throw IllegalArgumentException("Image is too large for available device memory",e)}
     try{
      resolver.openOutputStream(destination,"w")?.use{out->
       check(bitmap.compress(if(png)Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG,if(png)100 else 95,out))
