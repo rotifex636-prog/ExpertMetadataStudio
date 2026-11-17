@@ -80,7 +80,7 @@ private fun StudioApp(activity:ComponentActivity){
   })
  }
  MaterialTheme(colorScheme=darkColorScheme(primary=Cyan,background=Navy,surface=Panel)){
-  Column(Modifier.fillMaxSize().background(Navy)){
+  Column(Modifier.fillMaxSize().background(Navy).navigationBarsPadding()){
    if(page=="Home"||page=="Files"||page=="Settings"||page=="About") {
     Row(Modifier.fillMaxWidth().padding(start=20.dp,end=20.dp,top=26.dp,bottom=12.dp),verticalAlignment=Alignment.CenterVertically){
      StudioLogo()
@@ -142,7 +142,7 @@ private fun StudioApp(activity:ComponentActivity){
        Info("USA export option",if(usa)"Synthetic: $city" else "Disabled")
       }
       OutlinedButton(onClick={picker=true},modifier=Modifier.fillMaxWidth()){Text("＋ Add More Media")}
-      PrimaryButton("🚀  Start Processing"){start()}
+      Spacer(Modifier.height(18.dp))
      }
      "Processing"->Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=18.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(18.dp)){
       Spacer(Modifier.height(10.dp))
@@ -207,6 +207,11 @@ private fun StudioApp(activity:ComponentActivity){
      }}
     }
    }
+   if(page=="Details"){
+    Box(Modifier.fillMaxWidth().background(Navy).padding(horizontal=18.dp,vertical=12.dp)){
+     PrimaryButton("Start Processing"){start()}
+    }
+   }
    if(page in listOf("Home","Files","Settings","About")){
     Row(Modifier.fillMaxWidth().background(Color(0xFF03101F)).padding(vertical=8.dp),horizontalArrangement=Arrangement.SpaceEvenly){
      listOf("Home" to "⌂","Files" to "▱","Settings" to "⚙","About" to "ⓘ").forEach{(name,symbol)->
@@ -238,6 +243,6 @@ private fun StudioApp(activity:ComponentActivity){
 }
 @Composable private fun PrimaryButton(label:String,click:()->Unit){Button(onClick=click,modifier=Modifier.fillMaxWidth().height(52.dp),shape=RoundedCornerShape(12.dp),colors=ButtonDefaults.buttonColors(containerColor=Cyan,contentColor=Navy)){Text(label,fontWeight=FontWeight.Bold)}}
 @Composable private fun Feature(icon:String,label:String){Column(horizontalAlignment=Alignment.CenterHorizontally){Text(icon,color=Cyan,fontSize=25.sp);Text(label,color=Color.White,fontSize=12.sp,lineHeight=16.sp)}}
-@Composable private fun Info(key:String,value:String){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text(key,color=Muted,fontSize=13.sp);Text(value,color=Color.White,fontSize=12.sp,maxLines=2)}}
+@Composable private fun Info(key:String,value:String){Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(3.dp)){Text(key,color=Muted,fontSize=12.sp);Text(value,color=Color.White,fontSize=13.sp)}}
 @Composable private fun Setting(label:String,sub:String,value:Boolean,onChange:(Boolean)->Unit){Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text(label,color=Color.White,fontWeight=FontWeight.SemiBold);Text(sub,color=Muted,fontSize=11.sp)};Switch(checked=value,onCheckedChange=onChange)}}
 @Composable private fun PickerChoice(icon:String,label:String,sub:String,click:()->Unit){Card(onClick=click,colors=CardDefaults.cardColors(containerColor=Color(0xFF12375D)),modifier=Modifier.fillMaxWidth()){Row(Modifier.padding(15.dp),verticalAlignment=Alignment.CenterVertically){Text(icon,color=Cyan,fontSize=27.sp);Spacer(Modifier.width(14.dp));Column(Modifier.weight(1f)){Text(label,color=Color.White,fontWeight=FontWeight.Bold);Text(sub,color=Muted,fontSize=12.sp)};Text("›",color=Color.White,fontSize=26.sp)}}}
