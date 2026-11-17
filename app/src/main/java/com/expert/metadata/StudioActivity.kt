@@ -63,6 +63,8 @@ private fun StudioApp(activity:ComponentActivity){
  var outputUri by remember{mutableStateOf<Uri?>(null)}
  var beforeSnapshot by remember{mutableStateOf<List<MetadataEntry>>(emptyList())}
  var compareTab by remember{mutableStateOf("Compare")}
+ var changesOnly by remember{mutableStateOf(false)}
+ var expandedGroups by remember{mutableStateOf(setOf("File","Media"))}
  val inspectedInput=rememberMediaMetadata(activity,selected.firstOrNull())
  val gallery=rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(30)){if(it.isNotEmpty()){selected=it;page="Details"}}
  val browse=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){if(it.isNotEmpty()){selected=it;page="Details"}}
@@ -193,25 +195,47 @@ private fun StudioApp(activity:ComponentActivity){
        else{
         val before=beforeSnapshot.associateBy{it.group+" / "+it.label}
         val after=afterSnapshot.associateBy{it.group+" / "+it.label}
-        val keys=when(compareTab){
-         "Before"->before.keys.toList()
-         "After"->after.keys.toList()
-         else->(before.keys+after.keys).distinct()
-        }
-        keys.forEach{key->
-         val old=before[key]?.value
-         val fresh=after[key]?.value
-         val change=when{
-          old==null&&fresh!=null->"Added"
-          old!=null&&fresh==null->"Removed / not exposed"
+        val allKeys=(before.keys+after.keys).distinct().filterNot{it.startsWith("Inspector / ")}
+        fun stateOf(key:String):String{
+         val old=before[key]?.value?.takeUnless{it=="Not found"}
+         val fresh=after[key]?.value?.takeUnless{it=="Not found"}
+         return when{
+          old==null&&fresh==null->"Not found"
+          old==null->"Added"
+          fresh==null->"Removed / not exposed"
           old==fresh->"Unchanged"
           else->"Changed"
          }
-         Text(key,color=Cyan,fontWeight=FontWeight.SemiBold)
-         if(compareTab!="After")Text("Before: ${old?:"Not found"}",color=Muted,fontSize=12.sp)
-         if(compareTab!="Before")Text("After: ${fresh?:"Not found"}",color=Color.White,fontSize=12.sp)
-         if(compareTab=="Compare")Text(change,color=if(change=="Unchanged")Muted else Green,fontSize=11.sp)
         }
+        val counts=allKeys.groupingBy{stateOf(it)}.eachCount()
+        Text("Summary  •  Added: ${counts["Added"]?:0}  •  Changed: ${counts["Changed"]?:0}",color=Cyan,fontWeight=FontWeight.Bold)
+        Text("Unchanged: ${counts["Unchanged"]?:0}  •  Removed/not exposed: ${counts["Removed / not exposed"]?:0}  •  Not found: ${counts["Not found"]?:0}",color=Muted,fontSize=12.sp)
+        Row(verticalAlignment=Alignment.CenterVertically){
+         Checkbox(checked=changesOnly,onCheckedChange={changesOnly=it})
+         Text("Show changed fields only",color=Color.White,fontSize=13.sp)
+        }
+        val keys=when(compareTab){
+         "Before"->before.keys.toList()
+         "After"->after.keys.toList()
+         else->allKeys
+        }.filterNot{it.startsWith("Inspector / ")}.filter{!changesOnly||stateOf(it) in listOf("Added","Changed","Removed / not exposed")}
+        if(keys.isEmpty())Text("No matching fields.",color=Muted)
+        keys.groupBy{it.substringBefore(" / ")}.forEach{(group,fields)->
+         val expanded=group in expandedGroups
+         OutlinedButton(onClick={expandedGroups=if(expanded)expandedGroups-group else expandedGroups+group},modifier=Modifier.fillMaxWidth()){
+          Text((if(expanded)"▾ " else "▸ ")+group+" (${fields.size})",color=Cyan)
+         }
+         if(expanded)fields.forEach{key->
+          val old=before[key]?.value
+          val fresh=after[key]?.value
+          val change=stateOf(key)
+          Text(key.substringAfter(" / "),color=Cyan,fontWeight=FontWeight.SemiBold)
+          if(compareTab!="After")Text("Before: ${old?:"Not found"}",color=Muted,fontSize=12.sp)
+          if(compareTab!="Before")Text("After: ${fresh?:"Not found"}",color=Color.White,fontSize=12.sp)
+          if(compareTab=="Compare")Text(change,color=if(change=="Unchanged"||change=="Not found")Muted else Green,fontSize=11.sp)
+         }
+        }
+        Text("Date: Embedded media date (if exposed) is different from the phone/gallery file date. USA timezone preview does not rewrite recording timestamps.",color=Muted,fontSize=11.sp)
        }
        Text("Comparison covers Android-readable fields only. Missing fields are not proof that all metadata was erased. File timestamps and proprietary MP4 tags may remain.",color=Muted,fontSize=11.sp)
       }
