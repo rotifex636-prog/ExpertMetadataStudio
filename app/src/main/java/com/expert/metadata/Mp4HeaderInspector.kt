@@ -30,6 +30,34 @@ internal fun inspectMp4Headers(context:Context,uri:Uri):List<MetadataEntry>{
    var trackNumber=0
    var cameraMake:String?=null
    var cameraModel:String?=null
+   val mdtaKeys=mutableMapOf<Int,String>()
+   fun parseKeys(start:Long,end:Long){
+    val header=read(start,8)?:return
+    header.int
+    val count=header.int
+    if(count<0||count>4096)return
+    var cursor=start+8
+    for(index in 1..count){
+     val item=read(cursor,8)?:break
+     val itemSize=item.int.toLong() and 0xffffffffL
+     val namespace=ByteArray(4);item.get(namespace)
+     if(itemSize<8||itemSize>end-cursor)break
+     if(String(namespace,Charsets.ISO_8859_1)=="mdta"&&itemSize<=512){
+      readTag(cursor+8,cursor+itemSize)?.let{mdtaKeys[index]=it}
+     }
+     cursor+=itemSize
+    }
+   }
+   fun parseMdtaValue(start:Long,end:Long):String?{
+    val header=read(start,8)?:return null
+    val boxSize=header.int.toLong() and 0xffffffffL
+    val name=ByteArray(4);header.get(name)
+    if(String(name,Charsets.ISO_8859_1)!="data"||boxSize<16||boxSize>end-start)return null
+    val flags=read(start+8,8)?:return null
+    val type=flags.int and 0x00ffffff
+    if(type!=1&&type!=0)return null
+    return readTag(start+16,start+boxSize)
+   }
    fun readTag(at:Long,end:Long):String?{
     val count=(end-at).coerceAtMost(256L).toInt()
     if(count<=0)return null
@@ -57,6 +85,16 @@ internal fun inspectMp4Headers(context:Context,uri:Uri):List<MetadataEntry>{
        val brand=ByteArray(4);v.get(brand)
        entries+=MetadataEntry("MP4 Container","Major brand",String(brand,Charsets.ISO_8859_1))
        entries+=MetadataEntry("MP4 Container","Brand version",v.int.toUInt().toString())
+      }
+     }
+     if(type=="keys")parseKeys(body,pos+boxSize)
+     if(depth>=2&&type.length==4&&mdtaKeys.isNotEmpty()){
+      val raw=type.toByteArray(Charsets.ISO_8859_1)
+      val index=((raw[0].toInt() and 255) shl 24) or ((raw[1].toInt() and 255) shl 16) or ((raw[2].toInt() and 255) shl 8) or (raw[3].toInt() and 255)
+      val key=mdtaKeys[index]
+      if(key=="com.apple.quicktime.make"||key=="com.apple.quicktime.model"){
+       val value=parseMdtaValue(body,pos+boxSize)
+       if(value!=null){if(key.endsWith(".make"))cameraMake=value else cameraModel=value}
       }
      }
      if(type=="©mak"||type=="©mod"){
@@ -90,7 +128,7 @@ internal fun inspectMp4Headers(context:Context,uri:Uri):List<MetadataEntry>{
      if(type=="trak"){
       trackNumber++
       scan(body,pos+boxSize,depth+1,trackNumber)
-     }else if(type=="moov"||type=="udta"||type=="mdia"||type=="ilst")scan(body,pos+boxSize,depth+1,track)
+     }else if(type=="moov"||type=="udta"||type=="mdia"||type=="ilst"||type=="meta")scan(body+if(type=="meta")4 else 0,pos+boxSize,depth+1,track)
      pos+=boxSize
     }
    }
