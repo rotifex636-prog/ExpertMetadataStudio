@@ -132,41 +132,48 @@ internal fun process(context:Context,uri:Uri,onProgress:(Float)->Unit,usaCity:St
  val suffix=if(video)"mp4" else if(png)"png" else "jpg"
  val stamp=SimpleDateFormat("yyyyMMdd_HHmmss_SSS",Locale.US).format(Date())
  val outputName="Clean_${stamp}.$suffix"
- val temp=File.createTempFile("expert_",".$suffix",context.cacheDir)
+ val values=ContentValues().apply{
+  put(MediaStore.MediaColumns.DISPLAY_NAME,outputName)
+  put(MediaStore.MediaColumns.MIME_TYPE,if(video)"video/mp4" else if(png)"image/png" else "image/jpeg")
+  put(MediaStore.MediaColumns.RELATIVE_PATH,(if(video)Environment.DIRECTORY_MOVIES else Environment.DIRECTORY_PICTURES)+"/ExpertMetadataStudio")
+  put(MediaStore.MediaColumns.IS_PENDING,1)
+ }
+ val collection=if(video)MediaStore.Video.Media.EXTERNAL_CONTENT_URI else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+ val destination=resolver.insert(collection,values)?:error("Cannot create output")
  try{
-  if(video)remux(context,uri,temp,onProgress,usaCity) else {
+  if(video){
+   // Stream-copy MP4 directly into the pending MediaStore file: no temp file and no second copy.
+   resolver.openFileDescriptor(destination,"w")?.use{fd->
+    remux(context,uri,fd.fileDescriptor,onProgress,usaCity)
+   }?:error("Cannot open video output")
+  }else{
+   // Image re-export intentionally remains separate; JPEG may be lossy.
    resolver.openInputStream(uri)?.use{input->
     val bitmap=BitmapFactory.decodeStream(input)?:error("Cannot decode image")
-    temp.outputStream().use{out->check(bitmap.compress(if(png)Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG,if(png)100 else 95,out))}
-    bitmap.recycle()
+    try{
+     resolver.openOutputStream(destination,"w")?.use{out->
+      check(bitmap.compress(if(png)Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG,if(png)100 else 95,out))
+     }?:error("Cannot write image")
+    }finally{bitmap.recycle()}
    }?:error("Cannot open image")
-   onProgress(.8f)
+   onProgress(.9f)
   }
-  check(temp.length()>0){"Empty output"}
-  val values=ContentValues().apply{
-   put(MediaStore.MediaColumns.DISPLAY_NAME,outputName)
-   put(MediaStore.MediaColumns.MIME_TYPE,if(video)"video/mp4" else if(png)"image/png" else "image/jpeg")
-   put(MediaStore.MediaColumns.RELATIVE_PATH,(if(video)Environment.DIRECTORY_MOVIES else Environment.DIRECTORY_PICTURES)+"/ExpertMetadataStudio")
-   put(MediaStore.MediaColumns.IS_PENDING,1)
-  }
-  val collection=if(video)MediaStore.Video.Media.EXTERNAL_CONTENT_URI else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-  val destination=resolver.insert(collection,values)?:error("Cannot create output")
-  try{
-   resolver.openOutputStream(destination)?.use{out->temp.inputStream().use{it.copyTo(out)}}?:error("Cannot write output")
-   resolver.update(destination,ContentValues().apply{put(MediaStore.MediaColumns.IS_PENDING,0)},null,null)
-  }catch(e:Exception){resolver.delete(destination,null,null);throw e}
+  resolver.update(destination,ContentValues().apply{put(MediaStore.MediaColumns.IS_PENDING,0)},null,null)
   onProgress(1f)
   return outputName
- }finally{temp.delete()}
+ }catch(e:Exception){
+  resolver.delete(destination,null,null)
+  throw e
+ }
 }
 
-private fun remux(context:Context,uri:Uri,output:File,onProgress:(Float)->Unit,usaCity:String?){
+private fun remux(context:Context,uri:Uri,output:java.io.FileDescriptor,onProgress:(Float)->Unit,usaCity:String?){
  val extractor=MediaExtractor()
  var muxer:MediaMuxer?=null
  try{
   context.contentResolver.openFileDescriptor(uri,"r")?.use{descriptor->
    extractor.setDataSource(descriptor.fileDescriptor)
-   val m=MediaMuxer(output.absolutePath,MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+   val m=MediaMuxer(output,MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
    muxer=m
    when(usaCity){
     "New York"->m.setLocation(40.7128f,-74.0060f)
