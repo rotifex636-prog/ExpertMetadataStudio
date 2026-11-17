@@ -1,6 +1,7 @@
 package com.expert.metadata
 
 import android.content.Context
+import androidx.exifinterface.media.ExifInterface
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
@@ -69,6 +70,32 @@ internal fun inspectMedia(context:Context,uri:Uri):List<MetadataEntry>{
    }
   }
  }
+ val isJpeg=resolver.getType(uri)?.equals("image/jpeg",true)==true || displayName(context,uri).endsWith(".jpg",true) || displayName(context,uri).endsWith(".jpeg",true)
+ val isPng=resolver.getType(uri)?.equals("image/png",true)==true || displayName(context,uri).endsWith(".png",true)
+ if(isJpeg){
+  runCatching{
+   resolver.openInputStream(uri)?.use{input->
+    val exif=ExifInterface(input)
+    val fields=listOf(
+     "Camera Make" to ExifInterface.TAG_MAKE,
+     "Camera Model" to ExifInterface.TAG_MODEL,
+     "Software" to ExifInterface.TAG_SOFTWARE,
+     "DateTime" to ExifInterface.TAG_DATETIME,
+     "DateTime Original" to ExifInterface.TAG_DATETIME_ORIGINAL,
+     "DateTime Digitized" to ExifInterface.TAG_DATETIME_DIGITIZED,
+     "Orientation" to ExifInterface.TAG_ORIENTATION,
+     "GPS Latitude" to ExifInterface.TAG_GPS_LATITUDE,
+     "GPS Longitude" to ExifInterface.TAG_GPS_LONGITUDE,
+     "GPS Latitude Ref" to ExifInterface.TAG_GPS_LATITUDE_REF,
+     "GPS Longitude Ref" to ExifInterface.TAG_GPS_LONGITUDE_REF,
+     "Artist" to ExifInterface.TAG_ARTIST,
+     "Copyright" to ExifInterface.TAG_COPYRIGHT
+    )
+    fields.forEach{(label,tag)->add("JPEG EXIF",label,exif.getAttribute(tag)?:"Not found")}
+   }?:add("Inspector","JPEG EXIF","Unable to open image")
+  }.onFailure{add("Inspector","JPEG EXIF",it.message?:"Unable to inspect EXIF")}
+ }
+ if(!isJpeg&&!isPng){
  val retriever=MediaMetadataRetriever()
  try{
   retriever.setDataSource(context,uri)
@@ -120,11 +147,12 @@ internal fun inspectMedia(context:Context,uri:Uri):List<MetadataEntry>{
   }
  }catch(e:Exception){add("Inspector","Track extractor",e.message?:"Could not inspect tracks")}
  finally{runCatching{extractor.release()}}
+ }
  if(resolver.getType(uri)?.contains("mp4",true)==true||displayName(context,uri).endsWith(".mp4",true)){
   runCatching{out.addAll(inspectMp4Headers(context,uri))}.onFailure{add("Inspector","MP4 header parser",it.message?:"Unavailable")}
  }
  if(out.none{it.group=="Media"&&it.label=="Embedded GPS"})add("Media","Embedded GPS","Not found")
  if(out.none{it.group=="Media"&&it.label=="Date"})add("Media","Embedded recording date","Not found")
- add("Inspector","Coverage","Android-exposed media and available MediaStore dates plus MP4 movie/track header timestamps; proprietary tags may remain invisible")
+ add("Inspector","Coverage","Android-exposed fields, JPEG EXIF where supported, MediaStore dates and MP4 header timestamps; proprietary metadata may remain invisible")
  return out
 }
