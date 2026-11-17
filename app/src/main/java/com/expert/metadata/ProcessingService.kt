@@ -22,9 +22,9 @@ class ProcessingService : Service() {
   val stop=PendingIntent.getService(this,1,Intent(this,ProcessingService::class.java).setAction(CANCEL),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
   return NotificationCompat.Builder(this,"processing").setSmallIcon(android.R.drawable.stat_sys_upload).setContentTitle("Expert Metadata Studio").setContentText(label).setContentIntent(open).setOngoing(true).setOnlyAlertOnce(true).setProgress(100,p,false).addAction(android.R.drawable.ic_menu_close_clear_cancel,"Cancel",stop).build()
  }
- private fun send(label:String,p:Float,details:String,busy:Boolean){
+ private fun send(label:String,p:Float,details:String,busy:Boolean,outputUri:String=""){
   if(busy)(getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(101,note(label,(p*100).toInt()))
-  sendBroadcast(Intent(UPDATE).setPackage(packageName).apply{putExtra("status",label);putExtra("progress",p);putExtra("details",details);putExtra("busy",busy)})
+  sendBroadcast(Intent(UPDATE).setPackage(packageName).apply{putExtra("status",label);putExtra("progress",p);putExtra("details",details);putExtra("busy",busy);putExtra("output_uri",outputUri)})
  }
  override fun onStartCommand(intent:Intent?,flags:Int,startId:Int):Int{
   if(intent?.action==CANCEL){cancel.set(true);return START_NOT_STICKY}
@@ -35,6 +35,7 @@ class ProcessingService : Service() {
   val usa=if(intent.getBooleanExtra("synthetic_usa",false))intent.getStringExtra("usa_city") else null
   Thread {
    val report=mutableListOf<String>()
+   var firstOutputUri=""
    try {
     for((index,uri) in uris.withIndex()){
      if(cancel.get())break
@@ -43,10 +44,14 @@ class ProcessingService : Service() {
       if(cancel.get())throw InterruptedException("Cancelled")
       send("Processing ${index+1}/${uris.size}: $name",(index+fraction)/uris.size,report.joinToString("\n"),true)
      },usa)}
-     report.add(result.fold({"✓ $name → $it"},{"✕ $name: ${it.message}"}))
+     report.add(result.fold({value->
+      val parts=value.split("|",limit=2)
+      if(firstOutputUri.isEmpty()&&parts.size==2)firstOutputUri=parts[1]
+      "✓ $name → ${parts[0]}"
+     },{"✕ $name: ${it.message}"}))
     }
    } finally {
-    send(if(cancel.get())"Cancelled" else "Finished",if(cancel.get())0f else 1f,report.joinToString("\n"),false)
+    send(if(cancel.get())"Cancelled" else "Finished",if(cancel.get())0f else 1f,report.joinToString("\n"),false,firstOutputUri)
     running.set(false);stopForeground(STOP_FOREGROUND_REMOVE);stopSelf()
    }
   }.start()
