@@ -231,7 +231,7 @@ private fun remux(context:Context,uri:Uri,output:java.io.FileDescriptor,onProgre
     val size=extractor.readSampleData(buffer,0)
     if(size<0)break
     info.offset=0;info.size=size;info.presentationTimeUs=extractor.sampleTime
-    info.flags=extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC
+    info.flags=if((extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC)!=0) MediaCodec.BUFFER_FLAG_KEY_FRAME else 0
     m.writeSampleData(target,buffer,info)
     if(duration>0)onProgress((info.presentationTimeUs.toFloat()/duration).coerceIn(0f,.9f))
     extractor.advance()
