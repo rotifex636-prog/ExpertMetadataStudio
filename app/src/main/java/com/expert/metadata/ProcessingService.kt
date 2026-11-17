@@ -40,7 +40,7 @@ class ProcessingService : Service() {
    try {
     for((index,uri) in uris.withIndex()){
      if(cancel.get())break
-     val name=displayName(this,uri)
+     val name=runCatching{displayName(this,uri)}.getOrDefault("Selected media ${index+1}")
      val result=runCatching{process(this,uri,{fraction->
       if(cancel.get())throw InterruptedException("Cancelled")
       send("Processing ${index+1}/${uris.size}: $name",(index+fraction)/uris.size,report.joinToString("\n"),true)
@@ -51,8 +51,12 @@ class ProcessingService : Service() {
       "✓ $name → ${parts[0]}"
      },{"✕ $name: ${it.message}"}))
     }
+   } catch(e:Exception) {
+    report.add("✕ Processing stopped: ${e.message?:e.javaClass.simpleName}")
    } finally {
-    send(if(cancel.get())"Cancelled" else "Finished",if(cancel.get())0f else 1f,report.joinToString("\n"),false,firstOutputUri)
+    val failed=report.any{it.startsWith("✕")}
+    val finalStatus=when{cancel.get()->"Cancelled";failed->"Finished with errors";else->"Finished"}
+    send(finalStatus,if(cancel.get())0f else 1f,report.joinToString("\n"),false,firstOutputUri)
     running.set(false);stopForeground(STOP_FOREGROUND_REMOVE);stopSelf()
    }
   }.start()
