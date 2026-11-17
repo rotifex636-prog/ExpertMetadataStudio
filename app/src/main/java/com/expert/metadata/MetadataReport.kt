@@ -1,5 +1,9 @@
 package com.expert.metadata
 
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+
 internal fun buildMetadataReport(
  sourceName:String,
  result:String,
@@ -32,6 +36,16 @@ internal fun buildMetadataReport(
   appendLine("Synthetic USA GPS option: "+if(usaEnabled)city else "OFF")
   appendLine("Selected camera profile (app preference only): $cameraProfile")
   appendLine("Camera profile is not written to MP4 camera/model metadata in this build.")
+  val utcText=second["MP4 Container / Movie header creation time (UTC)"]?.value
+  val instant=runCatching{Instant.parse(utcText)}.getOrNull()
+  if(instant!=null){
+   val zone=when(city){"New York"->"America/New_York";"Chicago"->"America/Chicago";"Los Angeles"->"America/Los_Angeles";else->"UTC"}
+   val format=DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z")
+   appendLine("Output MP4 creation UTC: $instant")
+   appendLine("Output MP4 creation in device timezone: "+format.withZone(ZoneId.systemDefault()).format(instant))
+   if(usaEnabled)appendLine("Output MP4 creation in selected USA timezone: "+format.withZone(ZoneId.of(zone)).format(instant))
+   appendLine("Timezone conversions above are display-only, not embedded timestamp edits.")
+  }
   appendLine("Fields: ${keys.size}; Added: ${counts["Added"]?:0}; Changed: ${counts["Changed"]?:0}; Unchanged: ${counts["Unchanged"]?:0}; Removed/not exposed: ${counts["Removed / not exposed"]?:0}; Not found: ${counts["Not found"]?:0}")
   appendLine()
   for(key in keys){
