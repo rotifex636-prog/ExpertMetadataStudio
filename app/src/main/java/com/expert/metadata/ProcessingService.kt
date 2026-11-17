@@ -33,6 +33,7 @@ class ProcessingService : Service() {
   if(uris.isEmpty()){running.set(false);stopSelf();return START_NOT_STICKY}
   cancel.set(false);startForeground(101,note("Starting",0))
   val usa=if(intent.getBooleanExtra("synthetic_usa",false))intent.getStringExtra("usa_city") else null
+  val clearTimestamps=intent.getBooleanExtra("clear_mp4_timestamps",true)
   Thread {
    val report=mutableListOf<String>()
    var firstOutputUri=""
@@ -43,7 +44,7 @@ class ProcessingService : Service() {
      val result=runCatching{process(this,uri,{fraction->
       if(cancel.get())throw InterruptedException("Cancelled")
       send("Processing ${index+1}/${uris.size}: $name",(index+fraction)/uris.size,report.joinToString("\n"),true)
-     },usa)}
+     },usa,clearTimestamps)}
      report.add(result.fold({value->
       val parts=value.split("|",limit=2)
       if(firstOutputUri.isEmpty()&&parts.size==2)firstOutputUri=parts[1]
