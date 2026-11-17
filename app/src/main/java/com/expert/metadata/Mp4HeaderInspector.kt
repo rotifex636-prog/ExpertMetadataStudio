@@ -27,6 +27,7 @@ internal fun inspectMp4Headers(context:Context,uri:Uri):List<MetadataEntry>{
     b.flip()
     return b
    }
+   val topLevelBoxes=mutableListOf<String>()
    var trackNumber=0
    var cameraMake:String?=null
    var cameraModel:String?=null
@@ -80,6 +81,7 @@ internal fun inspectMp4Headers(context:Context,uri:Uri):List<MetadataEntry>{
      val boxSize=when(shortSize){0L->end-pos;1L->read(pos+8,8)?.long?:break;else->shortSize}
      if(boxSize<header||boxSize>end-pos)break
      val body=pos+header
+     if(depth==0&&topLevelBoxes.size<64)topLevelBoxes+=type
      if(type=="ftyp"){
       read(body,8)?.let{v->
        val brand=ByteArray(4);v.get(brand)
@@ -133,6 +135,8 @@ internal fun inspectMp4Headers(context:Context,uri:Uri):List<MetadataEntry>{
     }
    }
    scan(0,size,0)
+   entries+=MetadataEntry("MP4 Container","Top-level boxes",topLevelBoxes.joinToString(", ").ifBlank{"None detected"})
+   entries+=MetadataEntry("MP4 Container","Inspection scope","Read-only header inspection; proprietary and unrecognized metadata are not guaranteed to be detected")
    entries+=MetadataEntry("Camera Metadata","Make (supported MP4 atoms)",cameraMake?:"Not found / unsupported")
    entries+=MetadataEntry("Camera Metadata","Model (supported MP4 atoms)",cameraModel?:"Not found / unsupported")
   }
