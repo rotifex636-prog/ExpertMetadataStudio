@@ -1,6 +1,7 @@
 package com.expert.metadata
 
 import android.content.*
+import android.widget.Toast
 import android.net.Uri
 import android.os.Bundle
 import android.media.MediaMetadataRetriever
@@ -185,6 +186,22 @@ private fun StudioApp(activity:ComponentActivity){
       val afterSnapshot=rememberMediaMetadata(activity,outputUri)
       StudioCard{
        Text("Before / After Metadata",color=Color.White,fontSize=20.sp,fontWeight=FontWeight.Bold)
+       if(outputUri!=null&&afterSnapshot!=null){
+        val report=buildMetadataReport(selected.firstOrNull()?.let{displayName(activity,it)}?:"Unknown",output,beforeSnapshot,afterSnapshot,usa,city)
+        Button(onClick={
+         val clipboard=activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+         clipboard.setPrimaryClip(ClipData.newPlainText("Metadata comparison",report))
+         Toast.makeText(activity,"Full metadata report copied",Toast.LENGTH_SHORT).show()
+        },modifier=Modifier.fillMaxWidth()){Text("Copy Full Metadata Report")}
+        OutlinedButton(onClick={
+         val intent=Intent(Intent.ACTION_SEND).apply{
+          type="text/plain"
+          putExtra(Intent.EXTRA_SUBJECT,"Expert Metadata Studio Report")
+          putExtra(Intent.EXTRA_TEXT,report)
+         }
+         activity.startActivity(Intent.createChooser(intent,"Share metadata report"))
+        },modifier=Modifier.fillMaxWidth()){Text("Share Text Report")}
+       }
        Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
         listOf("Before","After","Compare").forEach{tab->
          OutlinedButton(onClick={compareTab=tab}){Text(tab,color=if(compareTab==tab)Cyan else Color.White)}
