@@ -4,6 +4,7 @@ import android.content.*
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.*
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
@@ -159,7 +160,21 @@ internal fun process(context:Context,uri:Uri,onProgress:(Float)->Unit,usaCity:St
    }?:error("Cannot open image")
    onProgress(.9f)
   }
-  resolver.update(destination,ContentValues().apply{put(MediaStore.MediaColumns.IS_PENDING,0)},null,null)
+  val published=resolver.update(destination,ContentValues().apply{put(MediaStore.MediaColumns.IS_PENDING,0)},null,null)
+  check(published>0){"Output created but could not be published to Gallery"}
+  // Notify gallery observers and request a media scan of the newly published item.
+  resolver.notifyChange(destination,null)
+  runCatching{
+   resolver.query(destination,arrayOf(MediaStore.MediaColumns.DATA),null,null,null)?.use{cursor->
+    if(cursor.moveToFirst()){
+     val index=cursor.getColumnIndex(MediaStore.MediaColumns.DATA)
+     if(index>=0&&!cursor.isNull(index)){
+      val path=cursor.getString(index)
+      if(!path.isNullOrBlank())MediaScannerConnection.scanFile(context,arrayOf(path),arrayOf(if(video)"video/mp4" else if(png)"image/png" else "image/jpeg"),null)
+     }
+    }
+   }
+  }
   onProgress(1f)
   return "$outputName|$destination"
  }catch(e:Exception){
