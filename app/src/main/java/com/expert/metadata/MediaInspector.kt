@@ -86,7 +86,7 @@ internal fun inspectMedia(context:Context,uri:Uri):List<MetadataEntry>{
      "language" to MediaFormat.KEY_LANGUAGE,
      "rotation" to MediaFormat.KEY_ROTATION
     )
-    keys.forEach{(label,key)->if(format.containsKey(key))add(group,label,runCatching{format.getValue(key)?.toString()}.getOrNull())}
+    keys.forEach{(label,key)->if(format.containsKey(key))add(group,label,runCatching{when{key==MediaFormat.KEY_MIME||key==MediaFormat.KEY_LANGUAGE->format.getString(key);key==MediaFormat.KEY_DURATION->format.getLong(key).toString();else->format.getInteger(key).toString()}}.getOrNull())}
    }
   }
  }catch(e:Exception){add("Inspector","Track extractor",e.message?:"Could not inspect tracks")}
