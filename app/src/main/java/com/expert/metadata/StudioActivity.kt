@@ -124,15 +124,22 @@ private fun StudioApp(activity:ComponentActivity){
        Text(selected.firstOrNull()?.let{displayName(activity,it)}?:"No media selected",color=Color.White,fontWeight=FontWeight.Bold,maxLines=2)
        Text("${selected.size} file(s) selected",color=Muted)
       }
+      val inspected=rememberMediaMetadata(activity,selected.firstOrNull())
       StudioCard{
-       Text("Metadata (Before Processing)",color=Color.White,fontWeight=FontWeight.Bold)
-       val uri=selected.firstOrNull()
-       val mime=uri?.let{activity.contentResolver.getType(it)}?:"Unknown"
-       Info("Format",mime)
-       Info("File name",uri?.let{displayName(activity,it)}?:"—")
-       Info("USA Location",if(usa)"Synthetic: $city" else "Disabled")
-       Text("Optional synthetic MP4 GPS tag; this does not prove recording location.",color=Muted,fontSize=11.sp)
-       Info("Other Tags","Detailed inspection not yet available")
+       Text("Full Metadata Inspector — Before Processing",color=Color.White,fontWeight=FontWeight.Bold)
+       if(inspected==null)Text("Reading media metadata…",color=Muted)
+       else if(inspected.isEmpty())Text("No readable metadata found",color=Muted)
+       else {
+        var lastGroup=""
+        inspected.forEach{entry->
+         if(entry.group!=lastGroup){
+          lastGroup=entry.group
+          Text(entry.group,color=Cyan,fontWeight=FontWeight.SemiBold)
+         }
+         Info(entry.label,entry.value)
+        }
+       }
+       Info("USA export option",if(usa)"Synthetic: $city" else "Disabled")
       }
       OutlinedButton(onClick={picker=true},modifier=Modifier.fillMaxWidth()){Text("＋ Add More Media")}
       PrimaryButton("🚀  Start Processing"){start()}
