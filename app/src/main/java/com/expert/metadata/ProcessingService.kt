@@ -18,7 +18,7 @@ class ProcessingService : Service() {
  override fun onBind(intent:Intent?):IBinder?=null
  override fun onCreate(){super.onCreate();(getSystemService(NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(NotificationChannel("processing","Media processing",NotificationManager.IMPORTANCE_LOW))}
  private fun note(label:String,p:Int):Notification {
-  val open=PendingIntent.getActivity(this,0,Intent(this,MainActivity::class.java),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+  val open=PendingIntent.getActivity(this,0,Intent(this,StudioActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
   val stop=PendingIntent.getService(this,1,Intent(this,ProcessingService::class.java).setAction(CANCEL),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
   return NotificationCompat.Builder(this,"processing").setSmallIcon(android.R.drawable.stat_sys_upload).setContentTitle("Expert Metadata Studio").setContentText(label).setContentIntent(open).setOngoing(true).setOnlyAlertOnce(true).setProgress(100,p,false).addAction(android.R.drawable.ic_menu_close_clear_cancel,"Cancel",stop).build()
  }
