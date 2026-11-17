@@ -63,6 +63,7 @@ private fun StudioApp(activity:ComponentActivity){
  var outputUri by remember{mutableStateOf<Uri?>(null)}
  var beforeSnapshot by remember{mutableStateOf<List<MetadataEntry>>(emptyList())}
  var compareTab by remember{mutableStateOf("Compare")}
+ val inspectedInput=rememberMediaMetadata(activity,selected.firstOrNull())
  val gallery=rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(30)){if(it.isNotEmpty()){selected=it;page="Details"}}
  val browse=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){if(it.isNotEmpty()){selected=it;page="Details"}}
  val record=rememberLauncherForActivityResult(ActivityResultContracts.CaptureVideo()){if(it){page="Details"}}
@@ -79,7 +80,7 @@ private fun StudioApp(activity:ComponentActivity){
  }
  fun start(){
   if(selected.isEmpty())return
-  beforeSnapshot=selected.firstOrNull()?.let{inspectMedia(activity,it)}?:emptyList()
+  beforeSnapshot=inspectedInput?:emptyList()
   outputUri=null
   busy=true;progress=0f;status="Starting";page="Processing"
   ContextCompat.startForegroundService(activity,Intent(activity,ProcessingService::class.java).apply{
@@ -133,7 +134,7 @@ private fun StudioApp(activity:ComponentActivity){
        Text(selected.firstOrNull()?.let{displayName(activity,it)}?:"No media selected",color=Color.White,fontWeight=FontWeight.Bold,maxLines=2)
        Text("${selected.size} file(s) selected",color=Muted)
       }
-      val inspected=rememberMediaMetadata(activity,selected.firstOrNull())
+      val inspected=inspectedInput
       StudioCard{
        Text("Full Metadata Inspector — Before Processing",color=Color.White,fontWeight=FontWeight.Bold)
        if(inspected==null)Text("Reading media metadata…",color=Muted)
