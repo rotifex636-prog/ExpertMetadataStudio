@@ -52,6 +52,8 @@ private fun StudioApp(activity:ComponentActivity){
  var usa by remember{mutableStateOf(prefs.getBoolean("synthetic_usa",false))}
  var city by remember{mutableStateOf(prefs.getString("usa_city","New York")?:"New York")}
  LaunchedEffect(usa,city){prefs.edit().putBoolean("synthetic_usa",usa).putString("usa_city",city).apply()}
+ var cameraProfile by remember{mutableStateOf(prefs.getString("camera_profile","Original")?:"Original")}
+ LaunchedEffect(cameraProfile){prefs.edit().putString("camera_profile",cameraProfile).apply()}
  var autoClean by remember{mutableStateOf(true)}
  var preserve by remember{mutableStateOf(true)}
  var batch by remember{mutableStateOf(true)}
@@ -187,7 +189,7 @@ private fun StudioApp(activity:ComponentActivity){
       StudioCard{
        Text("Before / After Metadata",color=Color.White,fontSize=20.sp,fontWeight=FontWeight.Bold)
        if(outputUri!=null&&afterSnapshot!=null){
-        val report=buildMetadataReport(selected.firstOrNull()?.let{displayName(activity,it)}?:"Unknown",output,beforeSnapshot,afterSnapshot,usa,city)
+        val report=buildMetadataReport(selected.firstOrNull()?.let{displayName(activity,it)}?:"Unknown",output,beforeSnapshot,afterSnapshot,usa,city,cameraProfile)
         Button(onClick={
          val clipboard=activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
          clipboard.setPrimaryClip(ClipData.newPlainText("Metadata comparison",report))
@@ -271,6 +273,14 @@ private fun StudioApp(activity:ComponentActivity){
         Info("Current Local Time",usaTime(city))
         Text("Timezone is a preview only. Video recording timestamps are not rewritten.",color=Muted,fontSize=11.sp)
        }
+       Text("Camera Profile",color=Color.White,fontWeight=FontWeight.Bold)
+       listOf("Original","iPhone 15 Pro Max","iPhone 16 Pro Max","iPhone 17 Pro Max").forEach{model->
+        Row(verticalAlignment=Alignment.CenterVertically){
+         RadioButton(selected=cameraProfile==model,onClick={cameraProfile=model})
+         Text(model,color=Color.White)
+        }
+       }
+       Text("Camera selection is saved as an app preference and included in the copied report. It does not yet rewrite MP4 camera/model tags or prove the recording device.",color=Muted,fontSize=11.sp)
        Setting("Preserve Original Quality","Stream copy when supported",preserve){preserve=it}
        Text("MP4 remux uses stream copy. Images are re-exported.",color=Muted,fontSize=11.sp)
       }
