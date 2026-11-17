@@ -91,8 +91,11 @@ internal fun inspectMedia(context:Context,uri:Uri):List<MetadataEntry>{
   }
  }catch(e:Exception){add("Inspector","Track extractor",e.message?:"Could not inspect tracks")}
  finally{runCatching{extractor.release()}}
+ if(resolver.getType(uri)?.contains("mp4",true)==true||displayName(context,uri).endsWith(".mp4",true)){
+  runCatching{out.addAll(inspectMp4Headers(context,uri))}.onFailure{add("Inspector","MP4 header parser",it.message?:"Unavailable")}
+ }
  if(out.none{it.group=="Media"&&it.label=="Location"})add("Media","Embedded GPS","Not found")
  if(out.none{it.group=="Media"&&it.label=="Date"})add("Media","Embedded recording date","Not found")
- add("Inspector","Coverage","Android-exposed metadata only; unknown proprietary MP4 atoms may not be visible")
+ add("Inspector","Coverage","Android-exposed fields plus MP4 file brand and movie-header timestamps; proprietary tags and track timestamps may remain invisible")
  return out
 }
