@@ -60,6 +60,9 @@ private fun StudioApp(activity:ComponentActivity){
  var status by remember{mutableStateOf("Ready to Process")}
  var details by remember{mutableStateOf("")}
  var output by remember{mutableStateOf("")}
+ var outputUri by remember{mutableStateOf<Uri?>(null)}
+ var beforeSnapshot by remember{mutableStateOf<List<MetadataEntry>>(emptyList())}
+ var compareTab by remember{mutableStateOf("Compare")}
  val gallery=rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(30)){if(it.isNotEmpty()){selected=it;page="Details"}}
  val browse=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){if(it.isNotEmpty()){selected=it;page="Details"}}
  val record=rememberLauncherForActivityResult(ActivityResultContracts.CaptureVideo()){if(it){page="Details"}}
@@ -69,13 +72,15 @@ private fun StudioApp(activity:ComponentActivity){
    status=i.getStringExtra("status")?:status
    details=i.getStringExtra("details")?:details
    busy=i.getBooleanExtra("busy",busy)
-   if(!busy){output=details;page="Results"}
+   if(!busy){output=details;outputUri=i.getStringExtra("output_uri")?.takeIf{it.isNotBlank()}?.let{Uri.parse(it)};page="Results"}
   }}
   ContextCompat.registerReceiver(activity,receiver,IntentFilter(ProcessingService.UPDATE),ContextCompat.RECEIVER_NOT_EXPORTED)
   onDispose{activity.unregisterReceiver(receiver)}
  }
  fun start(){
   if(selected.isEmpty())return
+  beforeSnapshot=selected.firstOrNull()?.let{inspectMedia(activity,it)}?:emptyList()
+  outputUri=null
   busy=true;progress=0f;status="Starting";page="Processing"
   ContextCompat.startForegroundService(activity,Intent(activity,ProcessingService::class.java).apply{
    action=ProcessingService.START
@@ -168,11 +173,46 @@ private fun StudioApp(activity:ComponentActivity){
        Button(onClick={page="Home"}){Text("Run in Background")}
       }
      }
-     "Results"->Column(Modifier.fillMaxSize().padding(18.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
+     "Results"->Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
       StudioCard{
        Text("Processing Result",color=Color.White,fontSize=22.sp,fontWeight=FontWeight.Bold)
        Text(status,color=Cyan)
        Text(output.ifBlank{"No output details available"},color=Color.White)
+      }
+      val afterSnapshot=rememberMediaMetadata(activity,outputUri)
+      StudioCard{
+       Text("Before / After Metadata",color=Color.White,fontSize=20.sp,fontWeight=FontWeight.Bold)
+       Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+        listOf("Before","After","Compare").forEach{tab->
+         OutlinedButton(onClick={compareTab=tab}){Text(tab,color=if(compareTab==tab)Cyan else Color.White)}
+        }
+       }
+       if(outputUri==null)Text("No processed output available for comparison.",color=Muted)
+       else if(afterSnapshot==null)Text("Inspecting processed file…",color=Muted)
+       else{
+        val before=beforeSnapshot.associateBy{it.group+" / "+it.label}
+        val after=afterSnapshot.associateBy{it.group+" / "+it.label}
+        val keys=when(compareTab){
+         "Before"->before.keys.toList()
+         "After"->after.keys.toList()
+         else->(before.keys+after.keys).distinct()
+        }
+        keys.forEach{key->
+         val old=before[key]?.value
+         val fresh=after[key]?.value
+         val change=when{
+          old==null&&fresh!=null->"Added"
+          old!=null&&fresh==null->"Removed / not exposed"
+          old==fresh->"Unchanged"
+          else->"Changed"
+         }
+         Text(key,color=Cyan,fontWeight=FontWeight.SemiBold)
+         if(compareTab!="After")Text("Before: ${old?:"Not found"}",color=Muted,fontSize=12.sp)
+         if(compareTab!="Before")Text("After: ${fresh?:"Not found"}",color=Color.White,fontSize=12.sp)
+         if(compareTab=="Compare")Text(change,color=if(change=="Unchanged")Muted else Green,fontSize=11.sp)
+        }
+       }
+       Text("Comparison covers Android-readable fields only. Missing fields are not proof that all metadata was erased. File timestamps and proprietary MP4 tags may remain.",color=Muted,fontSize=11.sp)
       }
       PrimaryButton("Select More Media"){picker=true}
       OutlinedButton(onClick={page="Home"},modifier=Modifier.fillMaxWidth()){Text("Home")}
