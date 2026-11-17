@@ -19,8 +19,9 @@ internal data class MetadataEntry(val group:String,val label:String,val value:St
 
 @Composable
 internal fun rememberMediaMetadata(context:Context,uri:Uri?):List<MetadataEntry>? {
- val result by produceState<List<MetadataEntry>?>(initialValue=null,uri){
-  value=if(uri==null) emptyList() else withContext(Dispatchers.IO){inspectMedia(context,uri)}
+ var result by remember(uri){mutableStateOf<List<MetadataEntry>?>(null)}
+ LaunchedEffect(uri){
+  result=if(uri==null) emptyList() else withContext(Dispatchers.IO){inspectMedia(context,uri)}
  }
  return result
 }
