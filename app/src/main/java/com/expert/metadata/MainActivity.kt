@@ -138,6 +138,8 @@ internal fun process(context:Context,uri:Uri,onProgress:(Float)->Unit,usaCity:St
   put(MediaStore.MediaColumns.MIME_TYPE,if(video)"video/mp4" else if(png)"image/png" else "image/jpeg")
   put(MediaStore.MediaColumns.RELATIVE_PATH,(if(video)Environment.DIRECTORY_MOVIES else Environment.DIRECTORY_PICTURES)+"/ExpertMetadataStudio")
   put(MediaStore.MediaColumns.IS_PENDING,1)
+  // Sort each newly exported copy by export time in galleries that use DATE_TAKEN.
+  put(MediaStore.MediaColumns.DATE_TAKEN,System.currentTimeMillis())
  }
  val collection=if(video)MediaStore.Video.Media.EXTERNAL_CONTENT_URI else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
  val destination=resolver.insert(collection,values)?:error("Cannot create output")
