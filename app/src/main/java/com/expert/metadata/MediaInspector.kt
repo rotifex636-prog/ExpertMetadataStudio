@@ -60,7 +60,7 @@ internal fun inspectMedia(context:Context,uri:Uri):List<MetadataEntry>{
    Triple("Media","Writer",MediaMetadataRetriever.METADATA_KEY_WRITER),
    Triple("Media","Genre",MediaMetadataRetriever.METADATA_KEY_GENRE),
    Triple("Media","Compilation",MediaMetadataRetriever.METADATA_KEY_COMPILATION),
-   Triple("Media","Location",MediaMetadataRetriever.METADATA_KEY_LOCATION),
+   Triple("Media","Embedded GPS",MediaMetadataRetriever.METADATA_KEY_LOCATION),
    Triple("Media","Capture frame rate",MediaMetadataRetriever.METADATA_KEY_CAPTURE_FRAMERATE)
   )
   fields.forEach{(group,label,key)->add(group,label,retriever.extractMetadata(key))}
@@ -94,7 +94,7 @@ internal fun inspectMedia(context:Context,uri:Uri):List<MetadataEntry>{
  if(resolver.getType(uri)?.contains("mp4",true)==true||displayName(context,uri).endsWith(".mp4",true)){
   runCatching{out.addAll(inspectMp4Headers(context,uri))}.onFailure{add("Inspector","MP4 header parser",it.message?:"Unavailable")}
  }
- if(out.none{it.group=="Media"&&it.label=="Location"})add("Media","Embedded GPS","Not found")
+ if(out.none{it.group=="Media"&&it.label=="Embedded GPS"})add("Media","Embedded GPS","Not found")
  if(out.none{it.group=="Media"&&it.label=="Date"})add("Media","Embedded recording date","Not found")
  add("Inspector","Coverage","Android-exposed fields plus MP4 file brand and movie-header timestamps; proprietary tags and track timestamps may remain invisible")
  return out
