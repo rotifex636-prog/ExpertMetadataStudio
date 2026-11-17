@@ -26,6 +26,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import java.util.ArrayList
+import java.time.ZonedDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 private val Navy=Color(0xFF061326)
 private val Panel=Color(0xFF0B2545)
@@ -140,6 +144,7 @@ private fun StudioApp(activity:ComponentActivity){
         }
        }
        Info("USA export option",if(usa)"Synthetic: $city" else "Disabled")
+       if(usa){Info("Auto timezone",usaZone(city));Info("USA local time (preview)",usaTime(city))}
       }
       OutlinedButton(onClick={picker=true},modifier=Modifier.fillMaxWidth()){Text("＋ Add More Media")}
       Spacer(Modifier.height(18.dp))
@@ -180,6 +185,9 @@ private fun StudioApp(activity:ComponentActivity){
        if(usa){
         Text("USA City",color=Muted)
         listOf("New York","Los Angeles","Chicago").forEach{c->Row(verticalAlignment=Alignment.CenterVertically){RadioButton(selected=city==c,onClick={city=c});Text(c,color=Color.White)}}
+        Info("Auto Timezone",usaZone(city))
+        Info("Current Local Time",usaTime(city))
+        Text("Timezone is a preview only. Video recording timestamps are not rewritten.",color=Muted,fontSize=11.sp)
        }
        Setting("Preserve Original Quality","Stream copy when supported",preserve){preserve=it}
        Text("MP4 remux uses stream copy. Images are re-exported.",color=Muted,fontSize=11.sp)
@@ -246,3 +254,6 @@ private fun StudioApp(activity:ComponentActivity){
 @Composable private fun Info(key:String,value:String){Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(3.dp)){Text(key,color=Muted,fontSize=12.sp);Text(value,color=Color.White,fontSize=13.sp)}}
 @Composable private fun Setting(label:String,sub:String,value:Boolean,onChange:(Boolean)->Unit){Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text(label,color=Color.White,fontWeight=FontWeight.SemiBold);Text(sub,color=Muted,fontSize=11.sp)};Switch(checked=value,onCheckedChange=onChange)}}
 @Composable private fun PickerChoice(icon:String,label:String,sub:String,click:()->Unit){Card(onClick=click,colors=CardDefaults.cardColors(containerColor=Color(0xFF12375D)),modifier=Modifier.fillMaxWidth()){Row(Modifier.padding(15.dp),verticalAlignment=Alignment.CenterVertically){Text(icon,color=Cyan,fontSize=27.sp);Spacer(Modifier.width(14.dp));Column(Modifier.weight(1f)){Text(label,color=Color.White,fontWeight=FontWeight.Bold);Text(sub,color=Muted,fontSize=12.sp)};Text("›",color=Color.White,fontSize=26.sp)}}}
+
+private fun usaZone(city:String):String=when(city){"New York"->"America/New_York";"Chicago"->"America/Chicago";"Los Angeles"->"America/Los_Angeles";else->"America/New_York"}
+private fun usaTime(city:String):String=ZonedDateTime.now(ZoneId.of(usaZone(city))).format(DateTimeFormatter.ofPattern("MMM d, yyyy  h:mm a z",Locale.US))
