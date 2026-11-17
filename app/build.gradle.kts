@@ -7,7 +7,26 @@ android {
  namespace = "com.expert.metadata"
  compileSdk = 35
  defaultConfig { applicationId = "com.expert.metadata"; minSdk = 29; targetSdk = 35; versionCode = 12; versionName = "0.12.0-rc1" }
- buildTypes { release { isMinifyEnabled = false } }
+ val signingPath = System.getenv("RELEASE_KEYSTORE_PATH")
+ val signingStorePassword = System.getenv("RELEASE_STORE_PASSWORD")
+ val signingAlias = System.getenv("RELEASE_KEY_ALIAS")
+ val signingKeyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+ if (!signingPath.isNullOrBlank() && !signingStorePassword.isNullOrBlank() && !signingAlias.isNullOrBlank() && !signingKeyPassword.isNullOrBlank()) {
+  signingConfigs {
+   create("production") {
+    storeFile = file(signingPath)
+    storePassword = signingStorePassword
+    keyAlias = signingAlias
+    keyPassword = signingKeyPassword
+   }
+  }
+ }
+ buildTypes {
+  release {
+   isMinifyEnabled = false
+   if (signingConfigs.findByName("production") != null) signingConfig = signingConfigs.getByName("production")
+  }
+ }
  compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
  kotlinOptions { jvmTarget = "17" }
  buildFeatures { compose = true }
