@@ -76,8 +76,9 @@ internal fun PremiumNavIcon(name:String,active:Boolean){
 
 @Composable
 internal fun MediaThumbnail(context:Context,uri:Uri,modifier:Modifier=Modifier){
- val bitmap by produceState<Bitmap?>(initialValue=null,uri){
-  value=withContext(Dispatchers.IO){
+ var bitmap by remember(uri){mutableStateOf<Bitmap?>(null)}
+ LaunchedEffect(uri){
+  bitmap=withContext(Dispatchers.IO){
    runCatching{context.contentResolver.loadThumbnail(uri,Size(320,240),null)}.getOrNull()
   }
  }
