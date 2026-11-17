@@ -28,6 +28,16 @@ internal fun inspectMp4Headers(context:Context,uri:Uri):List<MetadataEntry>{
     return b
    }
    var trackNumber=0
+   var cameraMake:String?=null
+   var cameraModel:String?=null
+   fun readTag(at:Long,end:Long):String?{
+    val count=(end-at).coerceAtMost(256L).toInt()
+    if(count<=0)return null
+    val bytes=read(at,count)?:return null
+    val data=ByteArray(count);bytes.get(data)
+    val value=String(data,Charsets.UTF_8).trim().trim('\u0000')
+    return value.takeIf{it.isNotBlank()&&it.all{ch->!ch.isISOControl()}}
+   }
    fun date(seconds:Long):String=if(seconds==0L)"Unset (MP4 epoch zero)" else runCatching{Instant.ofEpochSecond(Math.subtractExact(seconds,2082844800L)).toString()}.getOrElse{"Invalid"}
    fun scan(start:Long,end:Long,depth:Int,track:Int=0){
     if(depth>3||end<=start)return
@@ -48,6 +58,12 @@ internal fun inspectMp4Headers(context:Context,uri:Uri):List<MetadataEntry>{
        entries+=MetadataEntry("MP4 Container","Major brand",String(brand,Charsets.ISO_8859_1))
        entries+=MetadataEntry("MP4 Container","Brand version",v.int.toUInt().toString())
       }
+     }
+     if(type=="©mak"||type=="©mod"){
+      val nested=read(body,8)
+      val hasData=nested!=null&&nested.int.toLong()>=16L&&String(ByteArray(4).also{nested.get(it)},Charsets.ISO_8859_1)=="data"
+      val value=readTag(body+if(hasData)16 else 0,pos+boxSize)
+      if(type=="©mak")cameraMake=value else cameraModel=value
      }
      if(type=="mvhd"){
       val v=read(body,if(read(body,1)?.get(0)?.toInt()==1)28 else 20)
@@ -74,11 +90,13 @@ internal fun inspectMp4Headers(context:Context,uri:Uri):List<MetadataEntry>{
      if(type=="trak"){
       trackNumber++
       scan(body,pos+boxSize,depth+1,trackNumber)
-     }else if(type=="moov"||type=="udta"||type=="mdia")scan(body,pos+boxSize,depth+1,track)
+     }else if(type=="moov"||type=="udta"||type=="mdia"||type=="ilst")scan(body,pos+boxSize,depth+1,track)
      pos+=boxSize
     }
    }
    scan(0,size,0)
+   entries+=MetadataEntry("Camera Metadata","Make (supported MP4 atoms)",cameraMake?:"Not found / unsupported")
+   entries+=MetadataEntry("Camera Metadata","Model (supported MP4 atoms)",cameraModel?:"Not found / unsupported")
   }
  }
  return entries
