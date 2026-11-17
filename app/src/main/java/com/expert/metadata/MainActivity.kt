@@ -160,7 +160,7 @@ internal fun process(context:Context,uri:Uri,onProgress:(Float)->Unit,usaCity:St
   }
   resolver.update(destination,ContentValues().apply{put(MediaStore.MediaColumns.IS_PENDING,0)},null,null)
   onProgress(1f)
-  return outputName
+  return "$outputName|$destination"
  }catch(e:Exception){
   resolver.delete(destination,null,null)
   throw e
