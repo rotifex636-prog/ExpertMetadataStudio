@@ -6,7 +6,8 @@ internal fun buildMetadataReport(
  before:List<MetadataEntry>,
  after:List<MetadataEntry>,
  usaEnabled:Boolean,
- city:String
+ city:String,
+ cameraProfile:String
 ):String {
  val first=before.associateBy{it.group+" / "+it.label}
  val second=after.associateBy{it.group+" / "+it.label}
@@ -29,6 +30,8 @@ internal fun buildMetadataReport(
   appendLine("Source: $sourceName")
   appendLine("Processing: $result")
   appendLine("Synthetic USA GPS option: "+if(usaEnabled)city else "OFF")
+  appendLine("Selected camera profile (app preference only): $cameraProfile")
+  appendLine("Camera profile is not written to MP4 camera/model metadata in this build.")
   appendLine("Fields: ${keys.size}; Added: ${counts["Added"]?:0}; Changed: ${counts["Changed"]?:0}; Unchanged: ${counts["Unchanged"]?:0}; Removed/not exposed: ${counts["Removed / not exposed"]?:0}; Not found: ${counts["Not found"]?:0}")
   appendLine()
   for(key in keys){
