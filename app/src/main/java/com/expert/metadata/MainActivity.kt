@@ -64,13 +64,13 @@ class MainActivity:ComponentActivity(){
     Column(Modifier.fillMaxSize().background(navy).verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
      Spacer(Modifier.height(10.dp))
      Text("◈ Expert Metadata Studio",color=Color.White,fontSize=23.sp,fontWeight=FontWeight.Bold)
-     Text("PRIVATE MEDIA CLEANER • V0.6 BUILD",color=blue,fontSize=11.sp)
+     Text("PRIVATE MEDIA CLEANER • RELEASE CANDIDATE",color=blue,fontSize=11.sp)
      Card(colors=CardDefaults.cardColors(containerColor=panel)){
       Column(Modifier.fillMaxWidth().padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
        Text("Metadata Cleaner & Editor",color=Color.White,fontSize=25.sp,fontWeight=FontWeight.Bold)
        Text("Clean supported metadata • Preserve original files",color=Color.LightGray)
        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){
-        Text("Synthetic USA location (MP4)",color=Color.White)
+        Text("Synthetic USA location (MP4 only)",color=Color.White)
         Switch(checked=usa,onCheckedChange={usa=it},enabled=!busy)
        }
        if(usa){
@@ -110,7 +110,7 @@ class MainActivity:ComponentActivity(){
      Text(status,color=blue)
      if(details.isNotBlank())Text(details,color=Color.White)
      Text("MP4 video remux: no re-encoding when compatible. JPEG/PNG: re-export (may alter quality). Output: Movies/Pictures/ExpertMetadataStudio. Originals stay unchanged.",color=Color.LightGray,fontSize=12.sp)
-     Text("Not guaranteed to remove all embedded tags or media fingerprints. USA location is synthetic. Unsupported formats report an error.",color=Color.LightGray,fontSize=12.sp)
+     Text("JPEG EXIF is removed by image re-export; MP4 camera Make/Model cannot currently be rewritten. No guarantee of complete removal of proprietary tags or fingerprints. USA location is synthetic. Unsupported formats report an error.",color=Color.LightGray,fontSize=12.sp)
     }
    }
   }
