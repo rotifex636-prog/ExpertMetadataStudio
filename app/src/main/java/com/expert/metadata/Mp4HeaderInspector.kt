@@ -27,7 +27,9 @@ internal fun inspectMp4Headers(context:Context,uri:Uri):List<MetadataEntry>{
     b.flip()
     return b
    }
-   fun scan(start:Long,end:Long,depth:Int){
+   var trackNumber=0
+   fun date(seconds:Long):String=if(seconds==0L)"Unset (MP4 epoch zero)" else runCatching{Instant.ofEpochSecond(Math.subtractExact(seconds,2082844800L)).toString()}.getOrElse{"Invalid"}
+   fun scan(start:Long,end:Long,depth:Int,track:Int=0){
     if(depth>3||end<=start)return
     var pos=start
     var count=0
@@ -53,12 +55,26 @@ internal fun inspectMp4Headers(context:Context,uri:Uri):List<MetadataEntry>{
        val version=v.get(0).toInt()
        val creation=if(version==1)v.getLong(4) else v.getInt(4).toLong() and 0xffffffffL
        val modification=if(version==1)v.getLong(12) else v.getInt(8).toLong() and 0xffffffffL
-       fun date(seconds:Long):String=runCatching{Instant.ofEpochSecond(Math.subtractExact(seconds,2082844800L)).toString()}.getOrElse{"Invalid"}
        entries+=MetadataEntry("MP4 Container","Movie header creation time (UTC)",date(creation))
        entries+=MetadataEntry("MP4 Container","Movie header modification time (UTC)",date(modification))
       }
      }
-     if(type=="moov"||type=="udta")scan(body,pos+boxSize,depth+1)
+     if(type=="tkhd"||type=="mdhd"){
+      val v=read(body,if(read(body,1)?.get(0)?.toInt()==1)24 else 16)
+      if(v!=null){
+       val version=v.get(0).toInt()
+       val creation=if(version==1)v.getLong(4) else v.getInt(4).toLong() and 0xffffffffL
+       val modification=if(version==1)v.getLong(12) else v.getInt(8).toLong() and 0xffffffffL
+       val label=if(type=="tkhd")"Track header" else "Media header"
+       val group="MP4 Track $track"
+       entries+=MetadataEntry(group,"$label creation time (UTC)",date(creation))
+       entries+=MetadataEntry(group,"$label modification time (UTC)",date(modification))
+      }
+     }
+     if(type=="trak"){
+      trackNumber++
+      scan(body,pos+boxSize,depth+1,trackNumber)
+     }else if(type=="moov"||type=="udta"||type=="mdia")scan(body,pos+boxSize,depth+1,track)
      pos+=boxSize
     }
    }
