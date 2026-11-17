@@ -43,8 +43,10 @@ private fun StudioApp(activity:ComponentActivity){
  var page by remember{mutableStateOf("Home")}
  var picker by remember{mutableStateOf(false)}
  var selected by remember{mutableStateOf<List<Uri>>(emptyList())}
- var usa by remember{mutableStateOf(false)}
- var city by remember{mutableStateOf("New York")}
+ val prefs=remember{activity.getSharedPreferences("studio_preferences",Context.MODE_PRIVATE)}
+ var usa by remember{mutableStateOf(prefs.getBoolean("synthetic_usa",false))}
+ var city by remember{mutableStateOf(prefs.getString("usa_city","New York")?:"New York")}
+ LaunchedEffect(usa,city){prefs.edit().putBoolean("synthetic_usa",usa).putString("usa_city",city).apply()}
  var autoClean by remember{mutableStateOf(true)}
  var preserve by remember{mutableStateOf(true)}
  var batch by remember{mutableStateOf(true)}
@@ -128,7 +130,8 @@ private fun StudioApp(activity:ComponentActivity){
        val mime=uri?.let{activity.contentResolver.getType(it)}?:"Unknown"
        Info("Format",mime)
        Info("File name",uri?.let{displayName(activity,it)}?:"—")
-       Info("Location","Not verified")
+       Info("USA Location",if(usa)"Synthetic: $city" else "Disabled")
+       Text("Optional synthetic MP4 GPS tag; this does not prove recording location.",color=Muted,fontSize=11.sp)
        Info("Other Tags","Detailed inspection not yet available")
       }
       OutlinedButton(onClick={picker=true},modifier=Modifier.fillMaxWidth()){Text("＋ Add More Media")}
@@ -166,7 +169,7 @@ private fun StudioApp(activity:ComponentActivity){
       Text("Processing Options",color=Cyan,fontWeight=FontWeight.Bold)
       StudioCard{
        Setting("Auto Clean Metadata","Clean supported non-essential tags",autoClean){autoClean=it}
-       Setting("🇺🇸 Generate USA Profile","Synthetic location in supported MP4",usa){usa=it}
+       Setting("🇺🇸 Generate USA Profile","Optional synthetic GPS location for MP4 exports",usa){usa=it}
        if(usa){
         Text("USA City",color=Muted)
         listOf("New York","Los Angeles","Chicago").forEach{c->Row(verticalAlignment=Alignment.CenterVertically){RadioButton(selected=city==c,onClick={city=c});Text(c,color=Color.White)}}
@@ -192,7 +195,7 @@ private fun StudioApp(activity:ComponentActivity){
      }
      "About"->Column(Modifier.padding(18.dp)){StudioCard{
       Text("Expert Metadata Studio",color=Color.White,fontSize=23.sp,fontWeight=FontWeight.Bold)
-      Text("V0.7 UI Preview",color=Cyan)
+      Text("V0.9 Performance Preview",color=Cyan)
       Text("MP4 remux and JPEG/PNG re-export. Synthetic USA metadata is not evidence of recording location. Output and metadata support vary by device.",color=Muted)
      }}
     }
