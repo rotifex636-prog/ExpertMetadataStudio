@@ -6,7 +6,7 @@ plugins {
 android {
  namespace = "com.expert.metadata"
  compileSdk = 35
- defaultConfig { applicationId = "com.expert.metadata"; minSdk = 29; targetSdk = 35; versionCode = 9; versionName = "0.9.0" }
+ defaultConfig { applicationId = "com.expert.metadata"; minSdk = 29; targetSdk = 35; versionCode = 11; versionName = "0.11.0" }
  buildTypes { release { isMinifyEnabled = false } }
  compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
  kotlinOptions { jvmTarget = "17" }
