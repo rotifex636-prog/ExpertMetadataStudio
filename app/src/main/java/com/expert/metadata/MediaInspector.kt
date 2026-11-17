@@ -6,6 +6,10 @@ import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.provider.MediaStore
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import androidx.compose.runtime.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -36,6 +40,30 @@ internal fun inspectMedia(context:Context,uri:Uri):List<MetadataEntry>{
     if(i>=0&&!cursor.isNull(i)){
      val bytes=cursor.getLong(i)
      add("File","Size",String.format(Locale.US,"%.2f MB (%d bytes)",bytes/1048576.0,bytes))
+    }
+   }
+  }
+ }
+ // MediaStore fields describe the library entry, not necessarily the embedded recording date.
+ val columns=listOf(
+  "Date added (device library)" to MediaStore.MediaColumns.DATE_ADDED,
+  "Date modified (device library)" to MediaStore.MediaColumns.DATE_MODIFIED,
+  "Date taken (device library)" to MediaStore.MediaColumns.DATE_TAKEN
+ )
+ for((label,column) in columns){
+  runCatching{
+   resolver.query(uri,arrayOf(column),null,null,null)?.use{cursor->
+    if(cursor.moveToFirst()){
+     val index=cursor.getColumnIndex(column)
+     if(index>=0&&!cursor.isNull(index)){
+      val raw=cursor.getLong(index)
+      if(raw>0){
+       val millis=if(column==MediaStore.MediaColumns.DATE_TAKEN)raw else raw*1000L
+       val instant=Instant.ofEpochMilli(millis)
+       val formatted=DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z").withZone(ZoneId.systemDefault()).format(instant)
+       add("Device Library",label,"$formatted (UTC: $instant)")
+      }
+     }
     }
    }
   }
@@ -96,6 +124,6 @@ internal fun inspectMedia(context:Context,uri:Uri):List<MetadataEntry>{
  }
  if(out.none{it.group=="Media"&&it.label=="Embedded GPS"})add("Media","Embedded GPS","Not found")
  if(out.none{it.group=="Media"&&it.label=="Date"})add("Media","Embedded recording date","Not found")
- add("Inspector","Coverage","Android-exposed fields plus MP4 file brand and movie-header timestamps; proprietary tags and track timestamps may remain invisible")
+ add("Inspector","Coverage","Android-exposed media and available MediaStore dates plus MP4 movie/track header timestamps; proprietary tags may remain invisible")
  return out
 }
