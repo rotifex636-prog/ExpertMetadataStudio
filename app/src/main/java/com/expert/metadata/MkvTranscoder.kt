@@ -12,11 +12,13 @@ import androidx.media3.transformer.Composition
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
+import androidx.media3.transformer.ProgressHolder
 import androidx.media3.transformer.Transformer
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.AtomicInteger
 
 internal fun needsVideoTranscode(context: Context, uri: Uri): Boolean {
  val extractor=MediaExtractor()
@@ -39,6 +41,8 @@ internal fun transcodeMkvToMp4(context: Context, uri: Uri, onProgress:(Float)->U
  val failure=AtomicReference<Throwable?>()
  val handler=Handler(Looper.getMainLooper())
  val transformerRef=AtomicReference<Transformer?>()
+ val percent=AtomicInteger(0)
+ val progressHolder=ProgressHolder()
  handler.post {
   try {
    val transformer=Transformer.Builder(context)
@@ -51,13 +55,25 @@ internal fun transcodeMkvToMp4(context: Context, uri: Uri, onProgress:(Float)->U
      }
     }).build()
    transformerRef.set(transformer)
+   val poll=object:Runnable {
+    override fun run() {
+     if(finished.count==0L) return
+     try {
+      if(transformer.getProgress(progressHolder)==Transformer.PROGRESS_STATE_AVAILABLE) {
+       percent.set(progressHolder.progress.coerceIn(0,99))
+      }
+     } catch (_:Exception) { }
+     if(finished.count>0L) handler.postDelayed(this,500)
+    }
+   }
+   handler.postDelayed(poll,500)
    transformer.start(EditedMediaItem.Builder(MediaItem.fromUri(uri)).build(),output.absolutePath)
   } catch(t:Throwable) { failure.set(t); finished.countDown() }
  }
  try {
   // Long MKV videos can take significant time on mobile hardware.
   while(!finished.await(1,TimeUnit.SECONDS)) {
-   onProgress(0.05f)
+   onProgress(percent.get()/100f)
   }
   failure.get()?.let { throw IllegalStateException("Video conversion failed: ${it.message}",it) }
   check(output.length()>0L){"Video conversion produced an empty file"}
