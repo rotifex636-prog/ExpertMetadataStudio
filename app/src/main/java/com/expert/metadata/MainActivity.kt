@@ -109,8 +109,8 @@ class MainActivity:ComponentActivity(){
      if(busy||progress>0f)LinearProgressIndicator(progress={progress},modifier=Modifier.fillMaxWidth())
      Text(status,color=blue)
      if(details.isNotBlank())Text(details,color=Color.White)
-     Text("MP4/MKV input → MP4 remux: no re-encoding when tracks are compatible. JPEG/PNG: re-export (may alter quality). Output: Movies/Pictures/ExpertMetadataStudio. Originals stay unchanged.",color=Color.LightGray,fontSize=12.sp)
-     Text("JPEG EXIF is removed by image re-export; MP4 camera Make/Model cannot currently be rewritten. No guarantee of complete removal of proprietary tags or fingerprints. USA location is synthetic. MKV export uses MP4 and requires MP4-compatible audio/video codecs; unsupported formats or codecs report an error.",color=Color.LightGray,fontSize=12.sp)
+     Text("Auto format: MP4 → MP4 remux; MKV → MKV lossless metadata clean (no re-encoding). JPEG/PNG: re-export (may alter quality). Output: Movies/Pictures/ExpertMetadataStudio. Originals stay unchanged.",color=Color.LightGray,fontSize=12.sp)
+     Text("JPEG EXIF is removed by image re-export; MP4 camera Make/Model cannot currently be rewritten. No guarantee of complete removal of proprietary tags or fingerprints. USA location is synthetic. MKV stays MKV. Synthetic USA GPS is only applied to MP4. MKV cleaning removes selected standard tags, not all possible metadata.",color=Color.LightGray,fontSize=12.sp)
     }
    }
   }
@@ -130,12 +130,13 @@ internal fun process(context:Context,uri:Uri,onProgress:(Float)->Unit,usaCity:St
  val png=mime=="image/png"||ext=="png"
  val jpeg=mime=="image/jpeg"||ext=="jpg"||ext=="jpeg"
  require(video||png||jpeg){"Only MP4, MKV, JPEG and PNG supported"}
- val suffix=if(video)"mp4" else if(png)"png" else "jpg"
+ val mkv=video&&(ext=="mkv"||mime=="video/x-matroska"||mime=="video/matroska")
+ val suffix=if(mkv)"mkv" else if(video)"mp4" else if(png)"png" else "jpg"
  val stamp=SimpleDateFormat("yyyyMMdd_HHmmss_SSS",Locale.US).format(Date())
  val outputName="Clean_${stamp}.$suffix"
  val values=ContentValues().apply{
   put(MediaStore.MediaColumns.DISPLAY_NAME,outputName)
-  put(MediaStore.MediaColumns.MIME_TYPE,if(video)"video/mp4" else if(png)"image/png" else "image/jpeg")
+  put(MediaStore.MediaColumns.MIME_TYPE,if(mkv)"video/x-matroska" else if(video)"video/mp4" else if(png)"image/png" else "image/jpeg")
   put(MediaStore.MediaColumns.RELATIVE_PATH,(if(video)Environment.DIRECTORY_MOVIES else Environment.DIRECTORY_PICTURES)+"/ExpertMetadataStudio")
   put(MediaStore.MediaColumns.IS_PENDING,1)
   // Sort each newly exported copy by export time in galleries that use DATE_TAKEN.
@@ -146,22 +147,17 @@ internal fun process(context:Context,uri:Uri,onProgress:(Float)->Unit,usaCity:St
  try{
   if(video){
    // Stream-copy MP4 directly into the pending MediaStore file: no temp file and no second copy.
-   if(ext=="mkv" && needsVideoTranscode(context,uri)){
-    // VP9 and other non-MP4 video codecs require actual transcoding.
-    // Media3 produces an H.264/AAC MP4, then the existing remux path cleans metadata.
-    val converted=transcodeMkvToMp4(context,uri){p->onProgress(p.coerceAtMost(.2f))}
-    try {
-     val convertedUri=Uri.fromFile(converted)
-     resolver.openFileDescriptor(destination,"w")?.use{fd->
-      remux(context,convertedUri,fd.fileDescriptor,{p->onProgress(.2f+p*.8f)},usaCity)
-     }?:error("Cannot open video output")
-    }finally{converted.delete()}
+   if(mkv){
+    // Fast, lossless MKV-to-MKV metadata sanitization: no VP9 transcoding.
+    resolver.openFileDescriptor(destination,"w")?.use{fd->
+     cleanMkvFast(context,uri,fd.fileDescriptor,onProgress)
+    }?:error("Cannot open MKV output")
    }else{
     resolver.openFileDescriptor(destination,"w")?.use{fd->
      remux(context,uri,fd.fileDescriptor,onProgress,usaCity)
     }?:error("Cannot open video output")
    }
-   if(clearTimestamps)clearMp4HeaderTimes(context,destination)
+   if(clearTimestamps && !mkv)clearMp4HeaderTimes(context,destination)
   }else{
    // Image re-export intentionally remains separate; JPEG may be lossy.
    resolver.openInputStream(uri)?.use{input->
@@ -193,7 +189,7 @@ internal fun process(context:Context,uri:Uri,onProgress:(Float)->Unit,usaCity:St
      val index=cursor.getColumnIndex(MediaStore.MediaColumns.DATA)
      if(index>=0&&!cursor.isNull(index)){
       val path=cursor.getString(index)
-      if(!path.isNullOrBlank())MediaScannerConnection.scanFile(context,arrayOf(path),arrayOf(if(video)"video/mp4" else if(png)"image/png" else "image/jpeg"),null)
+      if(!path.isNullOrBlank())MediaScannerConnection.scanFile(context,arrayOf(path),arrayOf(if(mkv)"video/x-matroska" else if(video)"video/mp4" else if(png)"image/png" else "image/jpeg"),null)
      }
     }
    }
