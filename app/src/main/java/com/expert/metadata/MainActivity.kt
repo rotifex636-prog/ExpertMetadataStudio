@@ -146,9 +146,21 @@ internal fun process(context:Context,uri:Uri,onProgress:(Float)->Unit,usaCity:St
  try{
   if(video){
    // Stream-copy MP4 directly into the pending MediaStore file: no temp file and no second copy.
-   resolver.openFileDescriptor(destination,"w")?.use{fd->
-    remux(context,uri,fd.fileDescriptor,onProgress,usaCity)
-   }?:error("Cannot open video output")
+   if(ext=="mkv" && needsVideoTranscode(context,uri)){
+    // VP9 and other non-MP4 video codecs require actual transcoding.
+    // Media3 produces an H.264/AAC MP4, then the existing remux path cleans metadata.
+    val converted=transcodeMkvToMp4(context,uri){p->onProgress(p.coerceAtMost(.2f))}
+    try {
+     val convertedUri=Uri.fromFile(converted)
+     resolver.openFileDescriptor(destination,"w")?.use{fd->
+      remux(context,convertedUri,fd.fileDescriptor,{p->onProgress(.2f+p*.8f)},usaCity)
+     }?:error("Cannot open video output")
+    }finally{converted.delete()}
+   }else{
+    resolver.openFileDescriptor(destination,"w")?.use{fd->
+     remux(context,uri,fd.fileDescriptor,onProgress,usaCity)
+    }?:error("Cannot open video output")
+   }
    if(clearTimestamps)clearMp4HeaderTimes(context,destination)
   }else{
    // Image re-export intentionally remains separate; JPEG may be lossy.
