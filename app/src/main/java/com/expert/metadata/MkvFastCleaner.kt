@@ -53,7 +53,7 @@ internal fun cleanMkvFast(context:Context,source:Uri,destination:java.io.FileDes
     var left=payload
     while(left>0) { val n=minOf(left,zero.size.toLong()).toInt();file.write(zero,0,n);left-=n }
    }
-   val metadata=setOf(0x1254C367L,0x4461L,0x7BA9L,0x4D80L,0x5741L,0x536EL)
+   val metadata=setOf(0x1254C367L,0x4461L,0x7BA9L,0x4D80L,0x5741L,0x536EL,0xBFL)
    val containers=setOf(0x1A45DFA3L,0x18538067L,0x1549A966L,0x1654AE6BL,0xAEL)
    fun scan(start:Long,end:Long,depth:Int) {
     if(depth>5)return
