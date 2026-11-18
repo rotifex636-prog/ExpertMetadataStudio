@@ -209,15 +209,33 @@ private fun remux(context:Context,uri:Uri,output:java.io.FileDescriptor,onProgre
    }
    val tracks=mutableMapOf<Int,Int>()
    var bufferSize=1024*1024
-   for(i in 0 until extractor.trackCount){
-    val format=extractor.getTrackFormat(i)
-    val mime=format.getString(MediaFormat.KEY_MIME).orEmpty()
+   val trackFormats=(0 until extractor.trackCount).map { i ->
+    extractor.getTrackFormat(i).let { format -> format to format.getString(MediaFormat.KEY_MIME).orEmpty() }
+   }
+   // MP4 muxing does not support every codec found inside an MKV container.
+   // Never silently discard an audio/video track: a successful export must retain both.
+   val allowedVideo=setOf("video/avc","video/hevc","video/mp4v-es","video/3gpp","video/av01")
+   val allowedAudio=setOf("audio/mp4a-latm","audio/3gpp","audio/amr-wb")
+   val incompatible=trackFormats.mapIndexedNotNull { i, pair ->
+    val mime=pair.second
+    if ((mime.startsWith("video/") && mime !in allowedVideo) ||
+        (mime.startsWith("audio/") && mime !in allowedAudio)) "track $i ($mime)" else null
+   }
+   require(incompatible.isEmpty()) {
+    "MKV contains codec(s) not supported by MP4 stream-copy: ${incompatible.joinToString()}. Convert to H.264 + AAC MP4 first."
+   }
+   for((i,pair) in trackFormats.withIndex()){
+    val (format,mime)=pair
     if(mime.startsWith("audio/")||mime.startsWith("video/")){
-     tracks[i]=m.addTrack(format);extractor.selectTrack(i)
+     val mapped=try { m.addTrack(format) } catch(e:Exception) {
+      throw IllegalArgumentException("Cannot copy track $i ($mime) into MP4 on this device. Convert to H.264 + AAC MP4 first.",e)
+     }
+     tracks[i]=mapped
+     extractor.selectTrack(i)
      if(format.containsKey(MediaFormat.KEY_MAX_INPUT_SIZE))bufferSize=maxOf(bufferSize,format.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE).coerceAtMost(32*1024*1024))
     }
    }
-   check(tracks.isNotEmpty()){"No compatible tracks"}
+   check(tracks.isNotEmpty()){"No compatible audio/video tracks"}
    m.start()
    val buffer=ByteBuffer.allocateDirect(bufferSize)
    val info=MediaCodec.BufferInfo()
