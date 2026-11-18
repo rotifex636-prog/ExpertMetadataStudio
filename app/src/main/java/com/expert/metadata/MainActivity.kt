@@ -109,8 +109,8 @@ class MainActivity:ComponentActivity(){
      if(busy||progress>0f)LinearProgressIndicator(progress={progress},modifier=Modifier.fillMaxWidth())
      Text(status,color=blue)
      if(details.isNotBlank())Text(details,color=Color.White)
-     Text("MP4 video remux: no re-encoding when compatible. JPEG/PNG: re-export (may alter quality). Output: Movies/Pictures/ExpertMetadataStudio. Originals stay unchanged.",color=Color.LightGray,fontSize=12.sp)
-     Text("JPEG EXIF is removed by image re-export; MP4 camera Make/Model cannot currently be rewritten. No guarantee of complete removal of proprietary tags or fingerprints. USA location is synthetic. Unsupported formats report an error.",color=Color.LightGray,fontSize=12.sp)
+     Text("MP4/MKV input → MP4 remux: no re-encoding when tracks are compatible. JPEG/PNG: re-export (may alter quality). Output: Movies/Pictures/ExpertMetadataStudio. Originals stay unchanged.",color=Color.LightGray,fontSize=12.sp)
+     Text("JPEG EXIF is removed by image re-export; MP4 camera Make/Model cannot currently be rewritten. No guarantee of complete removal of proprietary tags or fingerprints. USA location is synthetic. MKV export uses MP4 and requires MP4-compatible audio/video codecs; unsupported formats or codecs report an error.",color=Color.LightGray,fontSize=12.sp)
     }
    }
   }
@@ -126,10 +126,10 @@ internal fun process(context:Context,uri:Uri,onProgress:(Float)->Unit,usaCity:St
  val name=displayName(context,uri)
  val mime=resolver.getType(uri).orEmpty().lowercase(Locale.US)
  val ext=name.substringAfterLast('.', "").lowercase(Locale.US)
- val video=mime=="video/mp4"||ext=="mp4"||ext=="m4v"
+ val video=mime=="video/mp4"||mime=="video/x-matroska"||mime=="video/matroska"||ext=="mp4"||ext=="m4v"||ext=="mkv"
  val png=mime=="image/png"||ext=="png"
  val jpeg=mime=="image/jpeg"||ext=="jpg"||ext=="jpeg"
- require(video||png||jpeg){"Only MP4, JPEG and PNG supported"}
+ require(video||png||jpeg){"Only MP4, MKV, JPEG and PNG supported"}
  val suffix=if(video)"mp4" else if(png)"png" else "jpg"
  val stamp=SimpleDateFormat("yyyyMMdd_HHmmss_SSS",Locale.US).format(Date())
  val outputName="Clean_${stamp}.$suffix"
