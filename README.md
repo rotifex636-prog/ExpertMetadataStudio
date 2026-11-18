@@ -1,21 +1,17 @@
-# Expert Metadata Studio — Android Foundation v0.1
+# Expert Metadata Studio v0.7 — UI development build
 
-Premium dark-blue Android UI with multi-file selection using Android Storage Access Framework.
+This branch replaces the scan-only prototype with an initial working media-processing engine.
 
-## Current implementation
-- Kotlin + Jetpack Compose home screen
-- Multi-select images/videos using system picker
-- Selected filename and size display
-- Explicit pipeline preview
-- GitHub Actions debug APK build
+Implemented:
+- Gallery and document multi-selection
+- MP4 remux of compatible audio/video streams (without re-encoding)
+- JPEG/PNG raster re-export (recompression may change quality)
+- Optional synthetic MP4 geolocation: New York, Los Angeles, Chicago
+- Foreground service with notification, progress and cancellation
+- MediaStore output to Movies/Pictures/ExpertMetadataStudio; original input preserved
 
-## NOT implemented yet
-Metadata reading/writing, USA profile generation, export, progress tracking, large-file worker, verification, and format compatibility. The prototype never modifies media.
+Limitations: MP4 remux is codec/device-dependent; not every embedded tag is removed. Image export is not lossless. Not all video formats are supported. No verified long-file resilience, persistent job queue, manual tag editing, or completed five-screen design. Synthetic coordinates are not authentic provenance.
 
-## Build
-1. Upload this project's contents to a GitHub repository (keep `.github` folder).
-2. Open Actions > Android Debug APK > Run workflow (or push a commit).
-3. Download `ExpertMetadataStudio-debug-apk` artifact after a successful run.
-4. Install the debug APK on Android; allow installation from your chosen source.
+GitHub Actions builds a debug APK. Test on an Android device before relying on the outputs.
 
-A signed release requires a separate keystore and signing configuration. Validate the GitHub build before treating the project as production-ready.
+UI: New StudioActivity launches Home, Select Media bottom sheet, Details, Processing, Settings, Files and About. Some mockup controls remain informational; Record Video, edit metadata, and processed-file history are not implemented. Verify APK compilation and device behavior before release.

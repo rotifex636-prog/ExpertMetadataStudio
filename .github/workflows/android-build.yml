@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -18,8 +18,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Build debug APK
-        run: gradle assembleDebug --no-daemon
+      - name: Build debug APK and run checks
+        run: gradle assembleDebug testDebugUnitTest --no-daemon
+      - name: Android lint (non-blocking if dependencies unavailable)
+        continue-on-error: true
+        run: gradle lintDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:
           name: ExpertMetadataStudio-debug-apk
