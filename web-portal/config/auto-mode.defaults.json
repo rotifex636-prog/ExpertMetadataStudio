@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "autoMode": true,
+  "metadata": {
+    "cleanEnabled": true,
+    "location": {
+      "mode": "synthetic",
+      "country": "US",
+      "profile": "USA",
+      "coordinates": null
+    },
+    "device": {
+      "mode": "synthetic",
+      "profile": "iPhone",
+      "model": null
+    },
+    "dateTime": {
+      "mode": "remove_supported"
+    }
+  },
+  "media": {
+    "preserveVideoAndAudioStreams": true,
+    "transcodeByDefault": false,
+    "inspectActualCodecs": true
+  },
+  "pipeline": {
+    "download": true,
+    "clean": true,
+    "verify": true,
+    "uploadToR2": true,
+    "createPublicLink": true,
+    "continueOnItemError": true
+  }
+}
