@@ -105,9 +105,24 @@ def _worker(root: Path) -> None:
             report = clean_video(candidates[0], destination)
             import json
             (folder / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+            cloud_key = None
+            cloud_error = None
+            share_token = None
+            if os.getenv("PORTAL_AUTO_R2_UPLOAD", "false").lower() == "true":
+                try:
+                    from storage import upload_cleaned
+                    from sharing import create_share
+                    cloud_key = upload_cleaned(destination, job_id)["key"]
+                    share_token = create_share(root, job_id, cloud_key)
+                except Exception:
+                    # Do not expose cloud credentials or SDK error details to clients.
+                    cloud_error = "Cloud upload unavailable; local cleaned file remains available"
             with queue_lock:
                 job["status"] = "completed"
                 job["download_url"] = f"/api/links/{job_id}/download"
+                job["r2_uploaded"] = bool(cloud_key)
+                job["share_url"] = f"/watch/{share_token}" if share_token else None
+                job["cloud_error"] = cloud_error
         except Exception as exc:
             with queue_lock:
                 job["status"] = "failed"
