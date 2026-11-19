@@ -13,11 +13,12 @@ import uuid
 from pathlib import Path
 
 from fastapi import FastAPI, File, Header, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from downloader import add_links, get_job
 from storage import upload_cleaned, presigned_download
+from sharing import create_share, lookup_share, revoke_share
 
 app = FastAPI(title="Expert Video Portal API", version="0.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["null", "http://127.0.0.1:5500", "http://localhost:5500"], allow_credentials=False, allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type"])
@@ -228,3 +229,74 @@ def signed_r2_download(job_id: str, authorization: str | None = Header(default=N
         return {"url": presigned_download(job["r2_key"]), "expires_in_seconds": 900}
     except (RuntimeError, ValueError) as exc:
         raise HTTPException(503, "R2 unavailable") from exc
+
+
+@app.post("/api/links/{job_id}/share")
+def create_link_share(job_id: str, authorization: str | None = Header(default=None)):
+    """Create a public, unlisted link only after successful cloud upload."""
+    authorize(authorization)
+    job = get_job(job_id)
+    if not job or job["status"] != "completed":
+        raise HTTPException(404, "Completed job not found")
+    # Check object availability in R2 before issuing a share link.
+    key = "processed/" + job_id + "/cleaned.mp4"
+    try:
+        client, bucket = __import__("storage").r2_client()
+        client.head_object(Bucket=bucket, Key=key)
+    except Exception as exc:
+        raise HTTPException(409, "Video not available in R2") from exc
+    token = create_share(ROOT, job_id, key)
+    return {"share_url": f"/watch/{token}", "token": token}
+
+
+@app.delete("/api/shares/{token}")
+def delete_share(token: str, authorization: str | None = Header(default=None)):
+    authorize(authorization)
+    if not revoke_share(ROOT, token):
+        raise HTTPException(404, "Share not found")
+    return {"revoked": True}
+
+
+WATCH_PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer"><title>Expert Video Portal | Watch Video</title>
+<style>body{margin:0;background:#090b17;color:#f6f2ff;font-family:system-ui,sans-serif}
+main{max-width:940px;margin:6vh auto;padding:24px}h1{color:#bd81ff}
+video{width:100%;background:black;border:1px solid #44305b;border-radius:16px}
+a{display:inline-block;background:#873be2;color:white;padding:14px 22px;border-radius:10px;
+text-decoration:none;margin-top:18px}p{color:#b8b1c7}</style></head><body>
+<main><h1>Expert Video Portal</h1><p>Shared HD video</p>
+<video id="player" controls playsinline preload="metadata"></video>
+<p><a id="download" download>Download HD Video</a></p></main>
+<script>const token=location.pathname.split("/").pop();
+const url="/api/public/"+encodeURIComponent(token)+"/video";
+document.getElementById("player").src=url;
+document.getElementById("download").href=url+"?download=1";</script></body></html>"""
+
+
+@app.get("/watch/{token}", response_class=HTMLResponse)
+def public_watch(token: str):
+    if not lookup_share(ROOT, token):
+        raise HTTPException(404, "Video not found")
+    return HTMLResponse(WATCH_PAGE, headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer",
+                                            "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; media-src 'self' https:; connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'"})
+
+
+@app.get("/api/public/{token}/video")
+def public_video(token: str, download: bool = False):
+    record = lookup_share(ROOT, token)
+    if not record:
+        raise HTTPException(404, "Video not found")
+    try:
+        # The signed URL is short-lived. The R2 object stays private.
+        client, bucket = __import__("storage").r2_client()
+        params = {"Bucket": bucket, "Key": record["key"]}
+        if download:
+            params["ResponseContentDisposition"] = 'attachment; filename="video.mp4"'
+        else:
+            params["ResponseContentDisposition"] = 'inline; filename="video.mp4"'
+        signed = client.generate_presigned_url("get_object", Params=params, ExpiresIn=300)
+    except Exception as exc:
+        raise HTTPException(503, "Video temporarily unavailable") from exc
+    return RedirectResponse(signed, status_code=302, headers={"Cache-Control": "no-store",
+                                                               "Referrer-Policy": "no-referrer"})
