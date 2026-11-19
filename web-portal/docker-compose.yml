@@ -1,0 +1,19 @@
+services:
+  portal:
+    build: ./backend
+    restart: unless-stopped
+    init: true
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      PORTAL_DATA_DIR: /data
+    volumes:
+      - portal-data:/data
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 2g
+volumes:
+  portal-data:
