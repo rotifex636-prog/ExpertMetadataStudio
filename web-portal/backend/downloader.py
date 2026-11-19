@@ -100,7 +100,6 @@ def _worker(root: Path) -> None:
             cmd = [
                 "yt-dlp", "--no-playlist", "--no-config",
                 "--restrict-filenames", "--no-overwrites", "--no-cache-dir",
-                "--no-call-home",
                 "--max-filesize", os.getenv("PORTAL_MAX_DOWNLOAD_SIZE", "1G"),
                 "--socket-timeout", "20", "--retries", "2",
                 "--format", "bestvideo[vcodec^=avc1][ext=mp4]+bestaudio[acodec^=mp4a]/best[vcodec^=avc1][ext=mp4]",
