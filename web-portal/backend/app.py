@@ -16,6 +16,7 @@ from fastapi import FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from downloader import add_links, get_job
 
 app = FastAPI(title="Expert Video Portal API", version="0.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["null", "http://127.0.0.1:5500", "http://localhost:5500"], allow_credentials=False, allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type"])
@@ -152,3 +153,37 @@ def report(job_id: str, authorization: str | None = Header(default=None)):
     if not path.is_file():
         raise HTTPException(404, "Report missing")
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+class LinkBatch(BaseModel):
+    urls: list[str]
+
+
+@app.post("/api/links")
+def submit_links(payload: LinkBatch, authorization: str | None = Header(default=None)):
+    authorize(authorization)
+    try:
+        return {"jobs": add_links(payload.urls, ROOT)}
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.get("/api/links/{job_id}")
+def link_status(job_id: str, authorization: str | None = Header(default=None)):
+    authorize(authorization)
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(404, "Job not found")
+    return job
+
+
+@app.get("/api/links/{job_id}/download")
+def link_download(job_id: str, authorization: str | None = Header(default=None)):
+    authorize(authorization)
+    job = get_job(job_id)
+    if not job or job["status"] != "completed":
+        raise HTTPException(404, "Completed job not found")
+    path = ROOT / "links" / job_id / "cleaned.mp4"
+    if not path.is_file():
+        raise HTTPException(404, "Output missing")
+    return FileResponse(path, media_type="video/mp4", filename="cleaned.mp4")
