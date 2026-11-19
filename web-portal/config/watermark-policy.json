@@ -8,10 +8,11 @@
   "tiktok": {
     "visibleUsernameHandling": "optional_authorized_only",
     "removeVisibleUsername": true,
-    "removePlatformLogo": false,
-    "method": "localized_blur_or_mask",
+    "removePlatformLogo": true,
+    "method": "localized_tracking_mask_or_inpainting",
     "requiresPermission": true,
-    "qualityImpactWarning": true
+    "qualityImpactWarning": true,
+    "visibleLogoHandling": "optional_authorized_only"
   },
   "defaultMetadataCleaning": true
 }
