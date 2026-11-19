@@ -12,12 +12,12 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, File, Header, HTTPException, UploadFile
+from fastapi import FastAPI, File, Header, HTTPException, UploadFile, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from downloader import add_links, get_job
-from storage import upload_cleaned, presigned_download
+from storage import upload_cleaned, presigned_download, r2_client
 from sharing import create_share, lookup_share, revoke_share
 
 app = FastAPI(title="Expert Video Portal API", version="0.1.0")
@@ -200,7 +200,7 @@ def upload_job_to_r2(job_id: str, authorization: str | None = Header(default=Non
     try:
         uploaded = upload_cleaned(ROOT / job_id / "cleaned.mp4", job_id)
     except (RuntimeError, OSError, ValueError) as exc:
-        raise HTTPException(503, "R2 upload unavailable: " + str(exc)) from exc
+        raise HTTPException(503, "R2 upload unavailable; verify server configuration") from exc
     JOBS[job_id]["r2_key"] = uploaded["key"]
     return {"id": job_id, "uploaded": True, "bytes": uploaded["bytes"]}
 
@@ -241,7 +241,7 @@ def create_link_share(job_id: str, authorization: str | None = Header(default=No
     # Check object availability in R2 before issuing a share link.
     key = "processed/" + job_id + "/cleaned.mp4"
     try:
-        client, bucket = __import__("storage").r2_client()
+        client, bucket = r2_client()
         client.head_object(Bucket=bucket, Key=key)
     except Exception as exc:
         raise HTTPException(409, "Video not available in R2") from exc
