@@ -5,9 +5,7 @@ permissions are the operator's responsibility. Downloads remain private.
 """
 from __future__ import annotations
 
-import ipaddress
 import os
-import re
 import subprocess
 import threading
 import uuid
@@ -34,12 +32,6 @@ def classify_url(raw: str) -> str:
     if url.scheme != "https" or not url.hostname or url.username or url.password or url.port not in (None, 443):
         raise ValueError("Only supported HTTPS video URLs are accepted")
     host = url.hostname.rstrip(".").lower()
-    try:
-        ipaddress.ip_address(host)
-        raise ValueError("IP addresses are not accepted")
-    except ValueError as exc:
-        if str(exc) == "IP addresses are not accepted":
-            raise
     for platform, domains in PLATFORMS.items():
         if any(host == d or host.endswith("." + d) for d in domains):
             return platform
@@ -85,7 +77,7 @@ def _worker(root: Path) -> None:
             # Prefer H.264/AAC MP4; do not fall back to VP9/AV1 silently.
             cmd = [
                 "yt-dlp", "--no-playlist", "--no-config",
-                "--restrict-filenames", "--no-overwrites",
+                "--restrict-filenames", "--no-overwrites", "--no-cache-dir",
                 "--max-filesize", os.getenv("PORTAL_MAX_DOWNLOAD_SIZE", "1G"),
                 "--socket-timeout", "20", "--retries", "2",
                 "--format", "bestvideo[vcodec^=avc1][ext=mp4]+bestaudio[acodec^=mp4a]/best[vcodec^=avc1][ext=mp4]",
@@ -99,6 +91,9 @@ def _worker(root: Path) -> None:
             candidates = list(folder.glob("source.*"))
             if len(candidates) != 1 or candidates[0].suffix.lower() != ".mp4":
                 raise RuntimeError("No compatible MP4 output; no codec fallback allowed")
+            max_bytes = int(os.getenv("PORTAL_MAX_UPLOAD_BYTES", str(1024 * 1024 * 1024)))
+            if candidates[0].stat().st_size > max_bytes:
+                raise RuntimeError("Downloaded file exceeds processing size limit")
             # Import lazily to avoid circular dependency.
             from app import clean_video
             destination = folder / "cleaned.mp4"
@@ -123,10 +118,10 @@ def _worker(root: Path) -> None:
                 job["r2_uploaded"] = bool(cloud_key)
                 job["share_url"] = f"/watch/{share_token}" if share_token else None
                 job["cloud_error"] = cloud_error
-        except Exception as exc:
+        except Exception:
             with queue_lock:
                 job["status"] = "failed"
-                job["error"] = str(exc)[:500]
+                job["error"] = "Video download or processing failed; check server logs"
 
 
 def get_job(job_id: str) -> dict | None:
