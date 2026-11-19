@@ -14,9 +14,11 @@ from pathlib import Path
 
 from fastapi import FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 app = FastAPI(title="Expert Video Portal API", version="0.1.0")
+app.add_middleware(CORSMiddleware, allow_origins=["null", "http://127.0.0.1:5500", "http://localhost:5500"], allow_credentials=False, allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type"])
 ROOT = Path(os.getenv("PORTAL_DATA_DIR", "./portal-data")).resolve()
 MAX_BYTES = int(os.getenv("PORTAL_MAX_UPLOAD_BYTES", str(1024 * 1024 * 1024)))
 SUPPORTED = {".mp4", ".mov", ".m4v", ".mkv"}
