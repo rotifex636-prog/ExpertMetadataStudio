@@ -1,0 +1,27 @@
+name: Web Portal Backend Tests
+on:
+  push:
+    branches:
+      - feature/expert-video-portal
+    paths:
+      - 'web-portal/backend/**'
+      - '.github/workflows/web-portal-tests.yml'
+  pull_request:
+    paths:
+      - 'web-portal/backend/**'
+      - '.github/workflows/web-portal-tests.yml'
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install backend dependencies
+        run: python -m pip install -r web-portal/backend/requirements.txt
+      - name: Check Python syntax
+        run: python -m compileall -q web-portal/backend
+      - name: Run regression tests
+        working-directory: web-portal/backend
+        run: python -m unittest discover -s tests -v
