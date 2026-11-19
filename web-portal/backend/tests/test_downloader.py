@@ -19,6 +19,10 @@ class URLValidationTests(unittest.TestCase):
             with self.subTest(url=url), self.assertRaises(ValueError):
                 classify_url(url)
 
+    def test_rejects_oversized_batches(self):
+        with self.assertRaises(ValueError):
+            add_links(["https://youtu.be/abcd"] * 21, Path("/tmp"))
+
     def test_all_or_nothing_validation(self):
         with self.assertRaises(ValueError):
             add_links(["https://youtu.be/abcd", "https://evil.example/video"], Path("/tmp"))
