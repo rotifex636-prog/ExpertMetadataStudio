@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import socket
 import threading
 import uuid
 from pathlib import Path
@@ -36,6 +37,26 @@ def classify_url(raw: str) -> str:
         if any(host == d or host.endswith("." + d) for d in domains):
             return platform
     raise ValueError("Unsupported platform")
+
+
+def validate_public_host(raw: str) -> None:
+    """Reject video-page hostnames resolving to loopback or private networks.
+
+    This is a preflight check, not a complete redirect/DNS-rebinding sandbox.
+    Production deployments must additionally enforce outbound egress controls.
+    """
+    import ipaddress
+    host = urlsplit(raw).hostname
+    if not host:
+        raise ValueError("Missing hostname")
+    try:
+        addresses = socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+    except socket.gaierror as exc:
+        raise ValueError("Video hostname could not be resolved") from exc
+    for record in addresses:
+        address = ipaddress.ip_address(record[4][0])
+        if not address.is_global:
+            raise ValueError("Video hostname resolves to a non-public IP")
 
 
 def add_links(urls: list[str], root: Path) -> list[dict]:
@@ -73,11 +94,13 @@ def _worker(root: Path) -> None:
         folder = root / "links" / job_id
         folder.mkdir(parents=True, exist_ok=True)
         try:
+            validate_public_host(job["source_url"])
             # Restrict external tool to exact prevalidated URLs, with no shell.
             # Prefer H.264/AAC MP4; do not fall back to VP9/AV1 silently.
             cmd = [
                 "yt-dlp", "--no-playlist", "--no-config",
                 "--restrict-filenames", "--no-overwrites", "--no-cache-dir",
+                "--no-call-home",
                 "--max-filesize", os.getenv("PORTAL_MAX_DOWNLOAD_SIZE", "1G"),
                 "--socket-timeout", "20", "--retries", "2",
                 "--format", "bestvideo[vcodec^=avc1][ext=mp4]+bestaudio[acodec^=mp4a]/best[vcodec^=avc1][ext=mp4]",
