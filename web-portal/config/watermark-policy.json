@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "platforms": [
+    "facebook",
+    "youtube",
+    "tiktok"
+  ],
+  "tiktok": {
+    "visibleUsernameHandling": "optional_authorized_only",
+    "removeVisibleUsername": true,
+    "removePlatformLogo": false,
+    "method": "localized_blur_or_mask",
+    "requiresPermission": true,
+    "qualityImpactWarning": true
+  },
+  "defaultMetadataCleaning": true
+}
