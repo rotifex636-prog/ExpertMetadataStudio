@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from downloader import add_links, get_job
+from storage import upload_cleaned, presigned_download
 
 app = FastAPI(title="Expert Video Portal API", version="0.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["null", "http://127.0.0.1:5500", "http://localhost:5500"], allow_credentials=False, allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type"])
@@ -187,3 +188,43 @@ def link_download(job_id: str, authorization: str | None = Header(default=None))
     if not path.is_file():
         raise HTTPException(404, "Output missing")
     return FileResponse(path, media_type="video/mp4", filename="cleaned.mp4")
+
+
+@app.post("/api/jobs/{job_id}/r2")
+def upload_job_to_r2(job_id: str, authorization: str | None = Header(default=None)):
+    """Admin-only manual cloud upload after local video cleaning."""
+    authorize(authorization)
+    if job_id not in JOBS or JOBS[job_id]["status"] != "completed":
+        raise HTTPException(404, "Completed job not found")
+    try:
+        uploaded = upload_cleaned(ROOT / job_id / "cleaned.mp4", job_id)
+    except (RuntimeError, OSError, ValueError) as exc:
+        raise HTTPException(503, "R2 upload unavailable: " + str(exc)) from exc
+    JOBS[job_id]["r2_key"] = uploaded["key"]
+    return {"id": job_id, "uploaded": True, "bytes": uploaded["bytes"]}
+
+
+@app.post("/api/links/{job_id}/r2")
+def upload_link_to_r2(job_id: str, authorization: str | None = Header(default=None)):
+    authorize(authorization)
+    job = get_job(job_id)
+    if not job or job["status"] != "completed":
+        raise HTTPException(404, "Completed job not found")
+    try:
+        uploaded = upload_cleaned(ROOT / "links" / job_id / "cleaned.mp4", job_id)
+    except (RuntimeError, OSError, ValueError) as exc:
+        raise HTTPException(503, "R2 upload unavailable: " + str(exc)) from exc
+    return {"id": job_id, "uploaded": True, "bytes": uploaded["bytes"],
+            "r2_key": uploaded["key"]}
+
+
+@app.get("/api/jobs/{job_id}/r2-download")
+def signed_r2_download(job_id: str, authorization: str | None = Header(default=None)):
+    authorize(authorization)
+    job = JOBS.get(job_id)
+    if not job or not job.get("r2_key"):
+        raise HTTPException(404, "Uploaded object not found")
+    try:
+        return {"url": presigned_download(job["r2_key"]), "expires_in_seconds": 900}
+    except (RuntimeError, ValueError) as exc:
+        raise HTTPException(503, "R2 unavailable") from exc
