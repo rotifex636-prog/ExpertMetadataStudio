@@ -1,0 +1,120 @@
+"""Authorized social-video URL download queue, powered by yt-dlp.
+
+This module does not bypass DRM or authentication. Source access and copyright
+permissions are the operator's responsibility. Downloads remain private.
+"""
+from __future__ import annotations
+
+import ipaddress
+import os
+import re
+import subprocess
+import threading
+import uuid
+from pathlib import Path
+from urllib.parse import urlsplit
+
+PLATFORMS = {
+    "facebook": ("facebook.com", "fb.watch"),
+    "youtube": ("youtube.com", "youtu.be"),
+    "tiktok": ("tiktok.com",),
+}
+MAX_URLS = 20
+MAX_QUEUE = 100
+queue_lock = threading.Lock()
+jobs: dict[str, dict] = {}
+pending: list[str] = []
+worker_running = False
+
+
+def classify_url(raw: str) -> str:
+    if len(raw) > 2048 or any(ord(c) < 32 for c in raw):
+        raise ValueError("Invalid video URL")
+    url = urlsplit(raw)
+    if url.scheme != "https" or not url.hostname or url.username or url.password or url.port not in (None, 443):
+        raise ValueError("Only supported HTTPS video URLs are accepted")
+    host = url.hostname.rstrip(".").lower()
+    try:
+        ipaddress.ip_address(host)
+        raise ValueError("IP addresses are not accepted")
+    except ValueError as exc:
+        if str(exc) == "IP addresses are not accepted":
+            raise
+    for platform, domains in PLATFORMS.items():
+        if any(host == d or host.endswith("." + d) for d in domains):
+            return platform
+    raise ValueError("Unsupported platform")
+
+
+def add_links(urls: list[str], root: Path) -> list[dict]:
+    global worker_running
+    if not urls or len(urls) > MAX_URLS:
+        raise ValueError("Submit between 1 and 20 URLs")
+    accepted = [(url, classify_url(url)) for url in urls]
+    with queue_lock:
+        if len(pending) + len(accepted) > MAX_QUEUE:
+            raise ValueError("Queue is full")
+        created = []
+        for url, platform in accepted:
+            job_id = uuid.uuid4().hex
+            job = {"id": job_id, "platform": platform, "source_url": url,
+                   "status": "queued", "error": None, "download_url": None}
+            jobs[job_id] = job
+            pending.append(job_id)
+            created.append(job.copy())
+        if not worker_running:
+            worker_running = True
+            threading.Thread(target=_worker, args=(root,), daemon=True).start()
+    return created
+
+
+def _worker(root: Path) -> None:
+    global worker_running
+    while True:
+        with queue_lock:
+            if not pending:
+                worker_running = False
+                return
+            job_id = pending.pop(0)
+            job = jobs[job_id]
+            job["status"] = "processing"
+        folder = root / "links" / job_id
+        folder.mkdir(parents=True, exist_ok=True)
+        try:
+            # Restrict external tool to exact prevalidated URLs, with no shell.
+            # Prefer H.264/AAC MP4; do not fall back to VP9/AV1 silently.
+            cmd = [
+                "yt-dlp", "--no-playlist", "--no-config",
+                "--restrict-filenames", "--no-overwrites",
+                "--max-filesize", os.getenv("PORTAL_MAX_DOWNLOAD_SIZE", "1G"),
+                "--socket-timeout", "20", "--retries", "2",
+                "--format", "bestvideo[vcodec^=avc1][ext=mp4]+bestaudio[acodec^=mp4a]/best[vcodec^=avc1][ext=mp4]",
+                "--merge-output-format", "mp4",
+                "--output", str(folder / "source.%(ext)s"),
+                job["source_url"],
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800, check=False)
+            if result.returncode:
+                raise RuntimeError((result.stderr or "Downloader failed")[-500:])
+            candidates = list(folder.glob("source.*"))
+            if len(candidates) != 1 or candidates[0].suffix.lower() != ".mp4":
+                raise RuntimeError("No compatible MP4 output; no codec fallback allowed")
+            # Import lazily to avoid circular dependency.
+            from app import clean_video
+            destination = folder / "cleaned.mp4"
+            report = clean_video(candidates[0], destination)
+            import json
+            (folder / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+            with queue_lock:
+                job["status"] = "completed"
+                job["download_url"] = f"/api/links/{job_id}/download"
+        except Exception as exc:
+            with queue_lock:
+                job["status"] = "failed"
+                job["error"] = str(exc)[:500]
+
+
+def get_job(job_id: str) -> dict | None:
+    with queue_lock:
+        job = jobs.get(job_id)
+        return job.copy() if job else None
