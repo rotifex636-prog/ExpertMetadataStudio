@@ -289,7 +289,7 @@ def public_video(token: str, download: bool = False):
         raise HTTPException(404, "Video not found")
     try:
         # The signed URL is short-lived. The R2 object stays private.
-        client, bucket = __import__("storage").r2_client()
+        client, bucket = r2_client()
         params = {"Bucket": bucket, "Key": record["key"]}
         if download:
             params["ResponseContentDisposition"] = 'attachment; filename="video.mp4"'
