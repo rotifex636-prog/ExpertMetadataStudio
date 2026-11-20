@@ -40,6 +40,18 @@ class PublicApiTests(unittest.TestCase):
             self.assertEqual(stream.headers["location"], "https://example.invalid/signed")
             self.assertEqual(mock_client.generate_presigned_url.call_args.kwargs["ExpiresIn"], 300)
 
+    def test_browser_preflight_allows_share_revocation(self):
+        response = self.client.options(
+            "/api/shares/example",
+            headers={
+                "Origin": "http://localhost:5500",
+                "Access-Control-Request-Method": "DELETE",
+                "Access-Control-Request-Headers": "authorization",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("DELETE", response.headers.get("access-control-allow-methods", ""))
+
     def test_admin_only_share_creation(self):
         with patch.dict("os.environ", {"PORTAL_ADMIN_TOKEN": "test-token"}):
             response = self.client.post("/api/links/" + "a" * 32 + "/share")
