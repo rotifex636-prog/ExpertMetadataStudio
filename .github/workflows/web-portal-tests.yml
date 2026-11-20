@@ -5,6 +5,8 @@ on:
       - feature/expert-video-portal
     paths:
       - 'web-portal/backend/**'
+      - 'web-portal/index.html'
+      - 'web-portal/tests/**'
       - '.github/workflows/web-portal-tests.yml'
   pull_request:
     paths:
@@ -27,5 +29,7 @@ jobs:
       - name: Run regression tests
         working-directory: web-portal/backend
         run: python -m unittest discover -s tests -v
+      - name: Validate dashboard JavaScript and HTTPS URL rules
+        run: node web-portal/tests/frontend-smoke.cjs
       - name: Build backend Docker image
         run: docker build -t expert-video-portal-test web-portal/backend
