@@ -98,6 +98,13 @@ def clean_video(source: Path, destination: Path) -> dict:
             "note": "Synthetic USA/iPhone metadata not yet implemented; metadata removal is not exhaustive."}
 
 
+@app.get("/api/admin/verify")
+def verify_admin(authorization: str | None = Header(default=None)):
+    """Verify the supplied bearer token without returning any secret."""
+    authorize(authorization)
+    return {"authenticated": True, "role": "admin"}
+
+
 @app.get("/api/health")
 def health():
     return {"status": "ok", "stage": "local-backend-m1", "deployed": False}
