@@ -20,7 +20,7 @@
 - Use a VPS or container host with persistent storage, HTTPS, domain, backups, and secret management.
 - Place the backend behind a TLS reverse proxy; do not publish the container port directly.
 - Set a domain and use the backend's `/watch/{token}` pages for unlisted sharing.
-- To permit a separately hosted HTTPS dashboard, set `PORTAL_ADMIN_ORIGIN=https://admin.example.com` (use your real domain) and restart the backend. The frontend currently accepts localhost API addresses only; hosted dashboard support still requires frontend changes.
+- To permit a separately hosted HTTPS dashboard, set `PORTAL_ADMIN_ORIGIN=https://admin.example.com` (use your real domain) and restart the backend. The frontend now accepts HTTPS API origins, but this is not a secure login system. Only enter an admin token into a dashboard served from an origin you control; never host the token-entry dashboard on an untrusted third-party site.
 - **Do not expose admin dashboard publicly yet.** The current frontend is a local prototype using a manually entered bearer token, not a hardened admin login.
 - Restrict public endpoints with rate limits and abuse protections.
 - Public sharing tokens act as access secrets; anyone holding a link can watch/download. Revocation prevents new redirects but cannot revoke an already-issued short-lived signed URL.
