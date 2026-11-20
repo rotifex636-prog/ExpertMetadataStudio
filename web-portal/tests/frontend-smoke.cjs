@@ -7,7 +7,7 @@ const os = require("node:os");
 const path = require("node:path");
 
 const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
-const scripts = [...html.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/gi)];
+const scripts = [...html.matchAll(new RegExp("<script(?:\\\\s[^>]*)?>([\\\\s\\\\S]*?)</script>", "gi"))];
 assert.equal(scripts.length, 1, "Expected one inline dashboard script");
 const source = scripts[0][1];
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "expert-portal-js-"));
@@ -19,7 +19,7 @@ try {
   fs.rmSync(scratch, { recursive: true, force: true });
 }
 
-const match = source.match(/function validateApiBase\\(base\\)\\{[^\\n]+\\}/);
+const match = source.match(/function validateApiBase\(base\)\{[^\n]+\}/);
 assert.ok(match, "API URL validator should exist");
 const validateApiBase = vm.runInNewContext("(" + match[0] + ")", { URL, Error });
 assert.equal(validateApiBase("http://127.0.0.1:8000"), "http://127.0.0.1:8000");
