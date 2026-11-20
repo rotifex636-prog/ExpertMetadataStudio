@@ -7,7 +7,7 @@ const os = require("node:os");
 const path = require("node:path");
 
 const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
-const scripts = [...html.matchAll(new RegExp("<script(?:\\\\s[^>]*)?>([\\\\s\\\\S]*?)</script>", "gi"))];
+const scripts = html.split("<script>").slice(1).map(part => [null, part.split("</script>")[0]]);
 assert.equal(scripts.length, 1, "Expected one inline dashboard script");
 const source = scripts[0][1];
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "expert-portal-js-"));
