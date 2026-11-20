@@ -21,7 +21,21 @@ from storage import upload_cleaned, presigned_download, r2_client
 from sharing import create_share, lookup_share, revoke_share
 
 app = FastAPI(title="Expert Video Portal API", version="0.1.0")
-app.add_middleware(CORSMiddleware, allow_origins=["null", "http://127.0.0.1:5500", "http://localhost:5500"], allow_credentials=False, allow_methods=["GET", "POST", "DELETE"], allow_headers=["Authorization", "Content-Type"])
+# Configure an exact HTTPS admin dashboard origin for hosted deployments.
+# Wildcard origins are intentionally not supported for authenticated API calls.
+allowed_origins = ["null", "http://127.0.0.1:5500", "http://localhost:5500"]
+hosted_origin = os.getenv("PORTAL_ADMIN_ORIGIN", "").strip().rstrip("/")
+if hosted_origin:
+    from urllib.parse import urlsplit
+    parsed_origin = urlsplit(hosted_origin)
+    if (parsed_origin.scheme != "https" or not parsed_origin.hostname
+            or parsed_origin.username or parsed_origin.password
+            or parsed_origin.path or parsed_origin.query or parsed_origin.fragment):
+        raise RuntimeError("PORTAL_ADMIN_ORIGIN must be a bare HTTPS origin")
+    allowed_origins.append(hosted_origin)
+app.add_middleware(CORSMiddleware, allow_origins=allowed_origins, allow_credentials=False,
+                   allow_methods=["GET", "POST", "DELETE"],
+                   allow_headers=["Authorization", "Content-Type"])
 ROOT = Path(os.getenv("PORTAL_DATA_DIR", "./portal-data")).resolve()
 MAX_BYTES = int(os.getenv("PORTAL_MAX_UPLOAD_BYTES", str(1024 * 1024 * 1024)))
 SUPPORTED = {".mp4", ".mov", ".m4v", ".mkv"}
