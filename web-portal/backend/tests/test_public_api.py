@@ -52,6 +52,16 @@ class PublicApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("DELETE", response.headers.get("access-control-allow-methods", ""))
 
+    def test_admin_verification_endpoint(self):
+        with patch.dict("os.environ", {"PORTAL_ADMIN_TOKEN": "test-token"}):
+            self.assertEqual(self.client.get("/api/admin/verify").status_code, 401)
+            self.assertEqual(self.client.get("/api/admin/verify",
+                             headers={"Authorization": "Bearer wrong"}).status_code, 403)
+            response = self.client.get("/api/admin/verify",
+                                       headers={"Authorization": "Bearer test-token"})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json(), {"authenticated": True, "role": "admin"})
+
     def test_admin_only_share_creation(self):
         with patch.dict("os.environ", {"PORTAL_ADMIN_TOKEN": "test-token"}):
             response = self.client.post("/api/links/" + "a" * 32 + "/share")
